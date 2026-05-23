@@ -59,10 +59,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import vhdt.wiis.R
+import vhdt.wiis.model.ScheduleItem
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.DayOfWeek
 import java.time.YearMonth
+
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -153,7 +157,12 @@ fun CalendarScreen(viewModel: CalendarVM = viewModel()) {
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        TodaySummaryCard(viewModel.selectedDate.value, viewModel.tasks.count { it.date == viewModel.selectedDate.value })
+        TodaySummaryCard(viewModel.selectedDate.value, viewModel.tasks.count { task ->
+            val taskDate = Instant.ofEpochMilli(task.startTime)
+                .atZone(ZoneId.systemDefault())
+                .toLocalDate()
+            taskDate == viewModel.selectedDate.value
+        })
 
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -454,7 +463,12 @@ private fun TodaySummaryCard(selectedDate: LocalDate, taskCount: Int) {
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 private fun TimelineSection(viewModel: CalendarVM) {
-    val tasksForSelectedDate = viewModel.tasks.filter { it.date == viewModel.selectedDate.value }
+    val tasksForSelectedDate = viewModel.tasks.filter { task ->
+        val taskDate = Instant.ofEpochMilli(task.startTime)
+            .atZone(ZoneId.systemDefault())
+            .toLocalDate()
+        taskDate == viewModel.selectedDate.value
+    }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         tasksForSelectedDate.forEachIndexed { index, task ->
@@ -490,10 +504,13 @@ private fun TimelineSection(viewModel: CalendarVM) {
                 Spacer(modifier = Modifier.width(8.dp))
 
                 TimelineTaskCard(
-                    time = task.time,
+                    time = Instant.ofEpochMilli(task.startTime)
+                        .atZone(ZoneId.systemDefault())
+                        .toLocalTime()
+                        .format(DateTimeFormatter.ofPattern("HH:mm")),
                     title = task.title,
                     isExpanded = isExpanded,
-                    details = task.details,
+                    details = task.note,
                     onToggle = { viewModel.toggleTaskExpanded(index) },
                     modifier = Modifier.padding(bottom = if (isLast) 0.dp else 20.dp)
                 )

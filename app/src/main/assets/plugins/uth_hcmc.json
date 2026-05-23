@@ -1,0 +1,19 @@
+{
+  "id": "uth_hcmc",
+  "schoolName": "ĐH Giao thông Vận tải TPHCM",
+  "loginUrl": "https://portal.ut.edu.vn",
+  "scheduleEndpoint": "https://portal.ut.edu.vn/calendar",
+  "authType": "jwt_bearer",
+  "usernameSelector": "",
+  "passwordSelector": "",
+  "captchaSelector": "recaptcha_v3",
+  "tableScheduleSelector": "",
+  "jsonMapping": {
+    "title": "tenMonHoc",
+    "location": "tenPhong",
+    "startTime": "tuGio",
+    "endTime": "denGio",
+    "date": "ngayBatDauHoc",
+    "note": "coSoToDisplay"
+  }
+}

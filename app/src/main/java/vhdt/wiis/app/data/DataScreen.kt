@@ -1,5 +1,10 @@
 package vhdt.wiis.app.data
 
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,10 +25,12 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,7 +44,13 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import vhdt.wiis.R
+import vhdt.wiis.model.SyncState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import vhdt.wiis.data.remote.WebViewLoginScreen
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun DataScreen(
     navController: NavController,
@@ -68,8 +81,13 @@ fun DataScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Contributions Section
-        ContributionsSection()
+        // SyncState Feedback
+        when (val state = viewModel.syncState.value) {
+            is SyncState.Loading -> CircularProgressIndicator()
+            is SyncState.Error -> Text(text = state.message, color = Color.Red)
+            is SyncState.NoPlugin -> Text("Chưa có plugin. Hãy import file JSON!")
+            else -> {}
+        }
     }
 }
 
@@ -86,17 +104,17 @@ private fun StatsHeader(viewModel: DataVM) {
     ) {
         StatCard(
             label = "Plugin",
-            value = "2",
+            value = viewModel.pluginCount.value.toString(),
             modifier = Modifier.weight(1f)
         )
         StatCard(
             label = "Sự kiện",
-            value = "12",
+            value = viewModel.eventCount.value.toString(),
             modifier = Modifier.weight(1f)
         )
         StatCard(
             label = "Báo thức",
-            value = "5",
+            value = viewModel.alarmCount.value.toString(),
             modifier = Modifier.weight(1f)
         )
     }
@@ -138,6 +156,10 @@ private fun StatCard(
 
 @Composable
 private fun InstalledPluginsSection(viewModel: DataVM) {
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri -> uri?.let { viewModel.importPluginJson(it) } }
+
     Column {
         Text(
             text = "PLUGIN ĐÃ CÀI",
@@ -149,31 +171,21 @@ private fun InstalledPluginsSection(viewModel: DataVM) {
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Plugin 1
-        PluginCard(
-            icon = R.drawable.ic_launcher_foreground,
-            name = "Đại học Bách Khoa",
-            location = "hcmut.edu.vn - v2",
-            status = "Tăng dụng",
-            statusColor = Color(0xFF22C55E)
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Plugin 2
-        PluginCard(
-            icon = R.drawable.ic_launcher_foreground,
-            name = "Gym Aloha",
-            location = "nhập key local",
-            status = "Thỏ ỏng",
-            statusColor = Color(0xFFEAB308)
-        )
+        viewModel.plugins.forEach { plugin ->
+            PluginCard(
+                name = plugin.schoolName,
+                location = plugin.loginUrl,
+                status = "Đang dùng",
+                statusColor = Color(0xFF22C55E)
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 
         // Import Button
         Button(
-            onClick = { /* TODO */ },
+            onClick = { launcher.launch("application/json") },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(48.dp),
@@ -182,9 +194,7 @@ private fun InstalledPluginsSection(viewModel: DataVM) {
                 containerColor = Color.White,
                 contentColor = Color(0xFF1856BB)
             ),
-            border = BorderDefaults.none.apply {
-                androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0))
-            }
+            border = BorderStroke(1.dp, Color(0xFFE2E8F0))
         ) {
             Icon(
                 painter = painterResource(id = R.drawable.arrow_forward_ios_24px),
@@ -204,7 +214,6 @@ private fun InstalledPluginsSection(viewModel: DataVM) {
 
 @Composable
 private fun PluginCard(
-    icon: Int,
     name: String,
     location: String,
     status: String,
@@ -216,7 +225,7 @@ private fun PluginCard(
             containerColor = Color.White
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
         modifier = Modifier
             .fillMaxWidth()
             .clickable { }
@@ -235,7 +244,7 @@ private fun PluginCard(
                 modifier = Modifier.size(40.dp)
             ) {
                 Icon(
-                    painter = painterResource(id = icon),
+                    painter = painterResource(id = R.drawable.ic_launcher_foreground),
                     contentDescription = null,
                     tint = Color.White,
                     modifier = Modifier
@@ -278,8 +287,11 @@ private fun PluginCard(
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 private fun SyncButtonsSection(viewModel: DataVM) {
+    var showLoginWebView by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -295,13 +307,32 @@ private fun SyncButtonsSection(viewModel: DataVM) {
         SyncButton(
             title = "Cập nhật lịch học",
             description = "Lấy lịch từ trường",
-            onClick = { /* TODO */ }
+            onClick = {
+                if (viewModel.getJwtToken() == null) {
+                    showLoginWebView = true
+                } else {
+                    viewModel.syncSchedule()
+                }
+            }
         )
 
         SyncButton(
             title = "Đồng bộ lịch điện thoại",
             description = "Xuất sang Google Calendar",
-            onClick = { /* TODO */ }
+            onClick = { viewModel.syncGoogleCalendar() }
+        )
+    }
+
+    val activePlugin = viewModel.plugins.firstOrNull()
+    if (showLoginWebView && activePlugin != null) {
+        WebViewLoginScreen(
+            onTokenReceived = { token ->
+                viewModel.saveJwtToken(token)
+                showLoginWebView = false
+                viewModel.syncSchedule()
+            },
+            onDismiss = { showLoginWebView = false },
+            plugin = activePlugin  // ← dùng plugin thật
         )
     }
 }
@@ -318,7 +349,7 @@ private fun SyncButton(
             containerColor = Color.White
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
@@ -362,127 +393,6 @@ private fun SyncButton(
             }
         }
     }
-}
-
-@Composable
-private fun ContributionsSection() {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Text(
-            text = "ĐÓNG GÓP",
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF94A3B8),
-            modifier = Modifier.padding(horizontal = 8.dp)
-        )
-
-        ContributionCard(
-            icon = R.drawable.ic_launcher_foreground,
-            title = "Cấp nhật",
-            description = "lịch học",
-            location = "HCMUT - tương lai",
-            badge = "Cấp nhật"
-        )
-
-        ContributionCard(
-            icon = R.drawable.ic_launcher_foreground,
-            title = "Đồng bộ",
-            description = "lịch điện thoại",
-            location = "Google Calendar\nXuất sang\n27/05/2026 - 08:30",
-            badge = "Đồng bộ"
-        )
-    }
-}
-
-@Composable
-private fun ContributionCard(
-    icon: Int,
-    title: String,
-    description: String,
-    location: String,
-    badge: String
-) {
-    Card(
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.White
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0))
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = Color(0xFFDEE5F4),
-                modifier = Modifier.size(40.dp)
-            ) {
-                Icon(
-                    painter = painterResource(id = icon),
-                    contentDescription = null,
-                    tint = Color(0xFF5B7FDF),
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(8.dp)
-                )
-            }
-
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text(
-                        text = title,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1E293B)
-                    )
-                    Text(
-                        text = description,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF5B7FDF)
-                    )
-                }
-                Text(
-                    text = location,
-                    fontSize = 11.sp,
-                    color = Color(0xFF94A3B8),
-                    lineHeight = 14.sp
-                )
-            }
-
-            Button(
-                onClick = { /* TODO */ },
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFF1F5FE)
-                ),
-                modifier = Modifier.height(32.dp)
-            ) {
-                Text(
-                    text = badge,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF1856BB)
-                )
-            }
-        }
-    }
-}
-
-object BorderDefaults {
-    val none = androidx.compose.foundation.BorderStroke(0.dp, Color.Transparent)
 }
 
 
