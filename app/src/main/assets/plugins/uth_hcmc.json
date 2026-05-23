@@ -2,17 +2,19 @@
   "id": "uth_hcmc",
   "schoolName": "ĐH Giao thông Vận tải TPHCM",
   "loginUrl": "https://portal.ut.edu.vn",
-  "scheduleEndpoint": "https://portal.ut.edu.vn/calendar",
+  "scheduleEndpoint": "https://portal.ut.edu.vn/api/v1/lichhoc/lichTuan",
   "authType": "jwt_bearer",
   "usernameSelector": "",
   "passwordSelector": "",
   "captchaSelector": "recaptcha_v3",
   "tableScheduleSelector": "",
+  "responseBodyKey": "body",
+  "timeFormat": "tiet",
   "jsonMapping": {
     "title": "tenMonHoc",
     "location": "tenPhong",
-    "startTime": "tuGio",
-    "endTime": "denGio",
+    "startTime": "tuTiet",
+    "endTime": "denTiet",
     "date": "ngayBatDauHoc",
     "note": "coSoToDisplay"
   }

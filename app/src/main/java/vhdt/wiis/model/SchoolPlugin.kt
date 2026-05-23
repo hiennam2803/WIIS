@@ -1,4 +1,5 @@
 package vhdt.wiis.model
+
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -10,9 +11,11 @@ data class SchoolPlugin(
     val authType: String,
     val usernameSelector: String,
     val passwordSelector: String,
-    val captchaSelector: String?,
+    val captchaSelector: String? = null,
     val tableScheduleSelector: String,
-    val jsonMapping: JsonMapping
+    val jsonMapping: JsonMapping,
+    val responseBodyKey: String? = null,   // key bọc ngoài, ví dụ "body"
+    val timeFormat: String = "HH:mm"       // "HH:mm" hoặc "tiet" (số tiết)
 )
 
 @Serializable
@@ -21,5 +24,6 @@ data class JsonMapping(
     val location: String,
     val startTime: String,
     val endTime: String,
-    val date: String
+    val date: String,
+    val note: String? = null
 )
