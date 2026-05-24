@@ -25,5 +25,10 @@ data class JsonMapping(
     val startTime: String,
     val endTime: String,
     val date: String,
-    val note: String? = null
+    val note: String? = null,
+    // THÊM MỚI
+    val classCode: String? = null,   // "maLopHocPhan"
+    val fromPeriod: String? = null,  // "tuTiet"
+    val toPeriod: String? = null,    // "denTiet"
+    val address: String? = null      // "tenPhong" đầy đủ
 )

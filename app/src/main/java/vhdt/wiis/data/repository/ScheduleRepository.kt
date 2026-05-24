@@ -72,6 +72,11 @@ class ScheduleRepository(
                 .format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
             val scheduleItems = apiClient.fetchWeekSchedule(plugin, jwtToken, currentDate)
             
+            // If null → 401 Unauthorized → token expired
+            if (scheduleItems == null) {
+                return SyncState.Error("AUTH_REQUIRED")
+            }
+            
             if (scheduleItems.isEmpty()) {
                 SyncState.Error("Không có lịch cho tuần này")
             } else {

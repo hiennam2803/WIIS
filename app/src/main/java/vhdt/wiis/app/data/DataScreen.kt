@@ -31,6 +31,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -291,6 +292,13 @@ private fun PluginCard(
 @Composable
 private fun SyncButtonsSection(viewModel: DataVM) {
     var showLoginWebView by remember { mutableStateOf(false) }
+
+    LaunchedEffect(viewModel.syncState.value) {
+        val state = viewModel.syncState.value
+        if (state is SyncState.Error && state.message == "AUTH_REQUIRED") {
+            showLoginWebView = true
+        }
+    }
 
     Column(
         modifier = Modifier.fillMaxWidth(),

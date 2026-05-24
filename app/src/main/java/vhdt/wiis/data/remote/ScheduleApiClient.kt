@@ -26,11 +26,11 @@ object ScheduleApiClient {
 
     // Bảng tiết → giờ chuẩn UTH HCMC
     private fun tietToTime(tiet: Int): String = when (tiet) {
-        1  -> "07:00"; 2  -> "07:55"; 3  -> "08:50"
-        4  -> "09:45"; 5  -> "10:40"; 6  -> "11:35"
+        1  -> "06:45"; 2  -> "07:40"; 3  -> "08:35"
+        4  -> "09:30"; 5  -> "10:25"; 6  -> "11:20"
         7  -> "12:30"; 8  -> "13:25"; 9  -> "14:20"
         10 -> "15:15"; 11 -> "16:10"; 12 -> "17:05"
-        else -> "07:00"
+        else -> "06:45"
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -38,7 +38,7 @@ object ScheduleApiClient {
         plugin: SchoolPlugin,
         jwtToken: String,
         date: String
-    ): List<ScheduleItem> = withContext(Dispatchers.IO) {
+    ): List<ScheduleItem>? = withContext(Dispatchers.IO) {
         return@withContext try {
             val url = URL("${plugin.scheduleEndpoint}?date=$date")
             val connection = url.openConnection() as HttpURLConnection
@@ -58,6 +58,13 @@ object ScheduleApiClient {
             val responseCode = connection.responseCode
             Log.d(TAG, "Response code: $responseCode")
 
+            // 401 Unauthorized — token expired or invalid
+            if (responseCode == HttpURLConnection.HTTP_UNAUTHORIZED) {
+                Log.e(TAG, "401 Unauthorized — JWT token expired or invalid")
+                connection.disconnect()
+                return@withContext null
+            }
+
             if (responseCode != HttpURLConnection.HTTP_OK) {
                 Log.e(TAG, "API error: $responseCode")
                 connection.disconnect()
@@ -72,7 +79,7 @@ object ScheduleApiClient {
                 responseBody.trim().startsWith("<html", ignoreCase = true)
             ) {
                 Log.e(TAG, "Server trả về HTML – token có thể hết hạn")
-                return@withContext emptyList()
+                return@withContext null
             }
 
             // Parse JSON: hỗ trợ cả dạng array thẳng lẫn dạng object bọc ngoài
@@ -125,6 +132,13 @@ object ScheduleApiClient {
                         val endTiet = endRaw.toIntOrNull() ?: 0
                         addMinutes(tietToTime(endTiet), 45)
                     } else endRaw
+                    val classCode = item[plugin.jsonMapping.classCode]
+                        ?.jsonPrimitive?.content ?: ""
+                    val fromPeriod = item[plugin.jsonMapping.fromPeriod]
+                        ?.jsonPrimitive?.content?.toIntOrNull() ?: 0
+                    val toPeriod = item[plugin.jsonMapping.toPeriod]
+                        ?.jsonPrimitive?.content?.toIntOrNull() ?: 0
+
 
                     val startTimeMs = convertToEpochMs(dateStr, startTimeStr)
                     val endTimeMs = convertToEpochMs(dateStr, endTimeStr)
@@ -137,7 +151,11 @@ object ScheduleApiClient {
                         note = note,
                         startTime = startTimeMs,
                         endTime = endTimeMs,
-                        type = ScheduleType.UNIVERSITY
+                        type = ScheduleType.UNIVERSITY,
+                        classCode = classCode,      // THÊM
+                        fromPeriod = fromPeriod,    // THÊM
+                        toPeriod = toPeriod,        // THÊM
+                        address = note              // THÊM — coSoToDisplay = địa chỉ
                     )
                 } catch (e: Exception) {
                     Log.e(TAG, "Error parsing schedule item: ${e.message}")

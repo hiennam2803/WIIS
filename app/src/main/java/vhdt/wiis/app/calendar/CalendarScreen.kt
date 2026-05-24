@@ -31,20 +31,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-//import androidx.compose.material.icons.Icons
-//import androidx.compose.material.icons.filled.KeyboardArrowDown
-//import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.AlertDialog
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -64,14 +59,12 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.time.DayOfWeek
 import java.time.YearMonth
 
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun CalendarScreen(viewModel: CalendarVM = viewModel()) {
-
 
     Column(
         modifier = Modifier
@@ -87,7 +80,7 @@ fun CalendarScreen(viewModel: CalendarVM = viewModel()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .shadow( 4.dp, RoundedCornerShape(12.dp))
+                .shadow(4.dp, RoundedCornerShape(12.dp))
                 .clip(RoundedCornerShape(12.dp))
                 .background(Color(0xFFE2EEFF)),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -106,7 +99,6 @@ fun CalendarScreen(viewModel: CalendarVM = viewModel()) {
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(start = 5.dp)
-
                 ) {
                     Icon(
                         painter = painterResource(id = R.drawable.arrow_back_ios_24px),
@@ -157,12 +149,10 @@ fun CalendarScreen(viewModel: CalendarVM = viewModel()) {
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        TodaySummaryCard(viewModel.selectedDate.value, viewModel.tasks.count { task ->
-            val taskDate = Instant.ofEpochMilli(task.startTime)
-                .atZone(ZoneId.systemDefault())
-                .toLocalDate()
-            taskDate == viewModel.selectedDate.value
-        })
+        TodaySummaryCard(
+            viewModel.selectedDate.value,
+            viewModel.getTasksForDate(viewModel.selectedDate.value).size
+        )
 
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -179,18 +169,14 @@ private fun MonthCalendarGrid(
     hasTasksOnDate: (LocalDate) -> Boolean
 ) {
     val dayLabels = listOf("T2", "T3", "T4", "T5", "T6", "T7", "CN")
-
-    // Tính ngày đầu tiên của tháng
     val firstDayOfMonth = displayMonth.atDay(1)
-    // Tính tuần đầu tiên chứa ngày đầu tháng
     val startDay = firstDayOfMonth.minusDays(firstDayOfMonth.dayOfWeek.value.toLong() - 1)
 
     Column {
-
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .shadow( 4.dp, RoundedCornerShape(12.dp))
+                .shadow(4.dp, RoundedCornerShape(12.dp))
                 .clip(RoundedCornerShape(12.dp))
                 .background(Color(0xFFFFFFFF)),
             horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -214,7 +200,6 @@ private fun MonthCalendarGrid(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Grid hiển thị ngày
         repeat(6) { weekIndex ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -234,7 +219,6 @@ private fun MonthCalendarGrid(
                             .background(
                                 when {
                                     isSelected -> Color(0xFF205FC6)
-                                    isCurrentMonth -> Color(0x00FFFFFF)
                                     else -> Color(0x00FFFFFF)
                                 }
                             )
@@ -278,141 +262,6 @@ private fun MonthCalendarGrid(
     }
 }
 
-@OptIn(ExperimentalAnimationApi::class)
-@RequiresApi(Build.VERSION_CODES.O)
-@Composable
-private fun WeeklySlider(
-    weekStart: LocalDate,
-    selectedDate: LocalDate,
-    onWeekChanged: (LocalDate) -> Unit,
-    onDateSelected: (LocalDate) -> Unit
-) {
-    val dayLabels = listOf("T2", "T3", "T4", "T5", "T6", "T7", "CN")
-
-    val lastWeekStart = remember { mutableStateOf(weekStart) }
-    val isMovingForward = weekStart > lastWeekStart.value
-
-    var totalDrag = 0f
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(100.dp)
-            .pointerInput(weekStart) {
-                detectHorizontalDragGestures(
-                    onDragStart = { totalDrag = 0f },
-                    onDragEnd = {
-                        when {
-                            totalDrag > 80f -> onWeekChanged(weekStart.minusDays(7))
-                            totalDrag < -80f -> onWeekChanged(weekStart.plusDays(7))
-                        }
-                    },
-                    onHorizontalDrag = { change, dragAmount ->
-                        change.consume()
-                        totalDrag += dragAmount
-                    }
-                )
-            }
-    ) {
-        AnimatedContent(
-            targetState = weekStart,
-            transitionSpec = {
-                if (isMovingForward) {
-                    slideInHorizontally(animationSpec = tween(200, easing = FastOutSlowInEasing)) { width -> width } with
-                            slideOutHorizontally(animationSpec = tween(200, easing = FastOutSlowInEasing)) { width -> -width }
-                } else {
-                    slideInHorizontally(animationSpec = tween(200, easing = FastOutSlowInEasing)) { width -> -width } with
-                            slideOutHorizontally(animationSpec = tween(200, easing = FastOutSlowInEasing)) { width -> width }
-                }
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) { targetWeekStart ->
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp)
-                    .align(Alignment.Center)
-            ) {
-                repeat(7) { index ->
-                    val date = targetWeekStart.plusDays(index.toLong())
-                    // Chỉ tô nếu date == selectedDate (không phải cùng thứ trong weekStart mới)
-                    val isSelected = date == selectedDate
-
-                    DayCell(
-                        dayLabel = dayLabels[index],
-                        dayOfMonth = date.dayOfMonth,
-                        isSelected = isSelected,
-                        hasSchedule = index % 2 == 0,
-                        onClick = { onDateSelected(date) },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(80.dp)
-                    )
-                }
-            }
-        }
-    }
-
-    lastWeekStart.value = weekStart
-}
-
-@Composable
-private fun DayCell(
-    dayLabel: String,
-    dayOfMonth: Int,
-    isSelected: Boolean,
-    hasSchedule: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val selectedColor = Color(0xFF1856BB)
-    val backgroundColor = if (isSelected) selectedColor else Color(0xFFF8FAFC)
-    val textColor = if (isSelected) Color.White else Color(0xFF475569)
-    val labelColor = if (isSelected) Color.White.copy(alpha = 0.8f) else Color(0xFF94A3B8)
-
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = backgroundColor,
-        border = if (isSelected) null else BorderStroke(1.dp, Color(0xFFCBD5E1)),
-        modifier = modifier
-            .clickable { onClick() }
-    ) {
-        Column(
-            modifier = Modifier
-                .height(68.dp)
-                .padding(vertical = 10.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = dayLabel,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = labelColor
-            )
-
-            Text(
-                text = dayOfMonth.toString(),
-                fontSize = 16.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = textColor
-            )
-
-            if (hasSchedule) {
-                Box(
-                    modifier = Modifier
-                        .size(5.dp)
-                        .clip(CircleShape)
-                        .background(if (isSelected) Color.White else selectedColor)
-                )
-            } else {
-                Spacer(modifier = Modifier.height(5.dp))
-            }
-        }
-    }
-}
-
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 private fun TodaySummaryCard(selectedDate: LocalDate, taskCount: Int) {
@@ -425,14 +274,12 @@ private fun TodaySummaryCard(selectedDate: LocalDate, taskCount: Int) {
         6 -> "Thứ Bảy"
         else -> "Chủ Nhật"
     }
-    
+
     val dateText = selectedDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
-    
+
     Card(
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFDBEAFE)
-        ),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFDBEAFE)),
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         border = BorderStroke(1.dp, Color(0xFF93C5FD))
@@ -463,12 +310,7 @@ private fun TodaySummaryCard(selectedDate: LocalDate, taskCount: Int) {
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 private fun TimelineSection(viewModel: CalendarVM) {
-    val tasksForSelectedDate = viewModel.tasks.filter { task ->
-        val taskDate = Instant.ofEpochMilli(task.startTime)
-            .atZone(ZoneId.systemDefault())
-            .toLocalDate()
-        taskDate == viewModel.selectedDate.value
-    }
+    val tasksForSelectedDate = viewModel.getTasksForDate(viewModel.selectedDate.value)
 
     Column(modifier = Modifier.fillMaxWidth()) {
         tasksForSelectedDate.forEachIndexed { index, task ->
@@ -503,14 +345,19 @@ private fun TimelineSection(viewModel: CalendarVM) {
 
                 Spacer(modifier = Modifier.width(8.dp))
 
+                // FIX 3: truyền đầy đủ task + endTime
                 TimelineTaskCard(
                     time = Instant.ofEpochMilli(task.startTime)
                         .atZone(ZoneId.systemDefault())
                         .toLocalTime()
                         .format(DateTimeFormatter.ofPattern("HH:mm")),
+                    endTime = Instant.ofEpochMilli(task.endTime)
+                        .atZone(ZoneId.systemDefault())
+                        .toLocalTime()
+                        .format(DateTimeFormatter.ofPattern("HH:mm")),
                     title = task.title,
                     isExpanded = isExpanded,
-                    details = task.note,
+                    task = task,
                     onToggle = { viewModel.toggleTaskExpanded(index) },
                     modifier = Modifier.padding(bottom = if (isLast) 0.dp else 20.dp)
                 )
@@ -519,12 +366,14 @@ private fun TimelineSection(viewModel: CalendarVM) {
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 private fun TimelineTaskCard(
     time: String,
+    endTime: String,
     title: String,
     isExpanded: Boolean,
-    details: String,
+    task: ScheduleItem,
     onToggle: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -533,9 +382,7 @@ private fun TimelineTaskCard(
             .fillMaxWidth()
             .animateContentSize(animationSpec = tween(durationMillis = 300)),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.White
-        ),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         border = BorderStroke(1.dp, Color(0xFFE2E8F0))
     ) {
@@ -581,7 +428,8 @@ private fun TimelineTaskCard(
 
                 Icon(
                     painter = painterResource(
-                        id = if (isExpanded) R.drawable.arrow_drop_up_24px else R.drawable.arrow_drop_down_24px
+                        id = if (isExpanded) R.drawable.arrow_drop_up_24px
+                        else R.drawable.arrow_drop_down_24px
                     ),
                     contentDescription = null,
                     tint = Color(0xFF94A3B8),
@@ -591,23 +439,83 @@ private fun TimelineTaskCard(
 
             if (isExpanded) {
                 Spacer(modifier = Modifier.height(12.dp))
+
+                // FIX 1: dùng Box thay Divider
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(1.dp)
                         .background(Color(0xFFE2E8F0))
                 )
+
                 Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = details,
-                    fontSize = 13.sp,
-                    color = Color(0xFF64748B),
-                    lineHeight = 20.sp
+
+                // Mã lớp
+                if (task.classCode.isNotEmpty()) {
+                    InfoRow(icon = "📋", label = "Mã lớp", value = task.classCode)
+                }
+
+                // Tiết học
+                if (task.fromPeriod > 0) {
+                    InfoRow(
+                        icon = "📚",
+                        label = "Tiết học",
+                        value = "Tiết: ${task.fromPeriod} - ${task.toPeriod}"
+                    )
+                }
+
+                // FIX 2: dùng $time thay $startTime
+                InfoRow(
+                    icon = "⏰",
+                    label = "Thời gian",
+                    value = "$time - $endTime"
                 )
+
+                // Phòng học
+                InfoRow(
+                    icon = "📍",
+                    label = "Phòng học",
+                    value = task.location
+                )
+
+                // Địa chỉ / Cơ sở
+                if (task.address.isNotEmpty()) {
+                    InfoRow(icon = "🏫", label = "Cơ sở", value = task.address)
+                } else if (task.note.isNotEmpty()) {
+                    InfoRow(icon = "🏫", label = "Cơ sở", value = task.note)
+                }
             }
         }
     }
 }
+
+// FIX 4: thêm InfoRow function
+@Composable
+private fun InfoRow(icon: String, label: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Text(icon, fontSize = 13.sp)
+        Spacer(modifier = Modifier.width(8.dp))
+        Column {
+            Text(
+                text = label,
+                fontSize = 11.sp,
+                color = Color(0xFF94A3B8),
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = value,
+                fontSize = 13.sp,
+                color = Color(0xFF334155)
+            )
+        }
+    }
+}
+
 @RequiresApi(Build.VERSION_CODES.O)
 @Preview
 @Composable

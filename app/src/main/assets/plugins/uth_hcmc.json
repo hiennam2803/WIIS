@@ -9,13 +9,17 @@
   "captchaSelector": "recaptcha_v3",
   "tableScheduleSelector": "",
   "responseBodyKey": "body",
-  "timeFormat": "tiet",
+  "timeFormat": "HH:mm",
   "jsonMapping": {
     "title": "tenMonHoc",
     "location": "tenPhong",
-    "startTime": "tuTiet",
-    "endTime": "denTiet",
+    "startTime": "tuGio",
+    "endTime": "denGio",
     "date": "ngayBatDauHoc",
-    "note": "coSoToDisplay"
+    "note": "coSoToDisplay",
+    "classCode": "maLopHocPhan",
+    "fromPeriod": "tuTiet",
+    "toPeriod": "denTiet",
+    "address": "coSoToDisplay"
   }
 }
