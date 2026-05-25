@@ -335,14 +335,6 @@ private fun SyncButtonSection(
                             .size(48.dp)
                             .graphicsLayer { rotationZ = rotation }
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = if (isSyncing) "Đang đồng bộ..." else "Đồng bộ",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        textAlign = TextAlign.Center
-                    )
                 }
             }
         }

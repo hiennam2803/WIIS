@@ -34,6 +34,8 @@ class ScheduleRepository(
     )
     
     private val regularPrefs = context.getSharedPreferences("schedule_data", Context.MODE_PRIVATE)
+    private var cachedPlugins: List<SchoolPlugin>? = null
+    private var cachedScheduleItems: List<ScheduleItem>? = null
     
     companion object {
         private const val SCHEDULE_ITEMS_KEY = "schedule_items"
@@ -41,11 +43,35 @@ class ScheduleRepository(
     }
     
     fun getInstalledPlugins(): List<SchoolPlugin> {
-        return try {
-            PluginLoader.loadBuiltinPlugins(context)
-        } catch (e: Exception) {
-            emptyList()
+        if (cachedPlugins == null) {
+            cachedPlugins = try {
+                PluginLoader.loadBuiltinPlugins(context)
+            } catch (e: Exception) {
+                emptyList()
+            }
         }
+        return cachedPlugins ?: emptyList()
+    }
+    
+    fun addPlugin(plugin: SchoolPlugin) {
+        cachedPlugins = (cachedPlugins ?: emptyList()) + plugin
+    }
+    
+    fun getSavedScheduleItems(): List<ScheduleItem> {
+        if (cachedScheduleItems == null) {
+            cachedScheduleItems = try {
+                val jsonString = regularPrefs.getString(SCHEDULE_ITEMS_KEY, null) ?: return emptyList()
+                json.decodeFromString(jsonString)
+            } catch (e: Exception) {
+                emptyList()
+            }
+        }
+        return cachedScheduleItems ?: emptyList()
+    }
+    
+    fun clearCache() {
+        cachedPlugins = null
+        cachedScheduleItems = null
     }
     
     fun saveJwtToken(schoolId: String, token: String) {
@@ -91,8 +117,6 @@ class ScheduleRepository(
         }
     }
 
-
-
     @RequiresApi(Build.VERSION_CODES.O)
     suspend fun fetchCurrentWeekSchedule(plugin: SchoolPlugin): SyncState {
         return fetchSchedule(plugin, 1)
@@ -101,19 +125,13 @@ class ScheduleRepository(
     fun saveScheduleItems(items: List<ScheduleItem>) {
         val jsonString = json.encodeToString(items)
         regularPrefs.edit().putString(SCHEDULE_ITEMS_KEY, jsonString).apply()
-    }
-    
-    fun getSavedScheduleItems(): List<ScheduleItem> {
-        return try {
-            val jsonString = regularPrefs.getString(SCHEDULE_ITEMS_KEY, null) ?: return emptyList()
-            json.decodeFromString(jsonString)
-        } catch (e: Exception) {
-            emptyList()
-        }
+        cachedScheduleItems = items
     }
     
     fun clearAllData() {
         regularPrefs.edit().clear().apply()
         encryptedPrefs.edit().clear().apply()
+        cachedPlugins = null
+        cachedScheduleItems = null
     }
 }

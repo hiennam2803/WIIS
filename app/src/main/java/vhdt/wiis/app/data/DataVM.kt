@@ -45,22 +45,19 @@ class DataVM(application: Application) : AndroidViewModel(application) {
     val syncState = mutableStateOf<SyncState>(SyncState.Idle)
 
     init {
-        // Load data asynchronously to avoid blocking main thread
-        viewModelScope.launch {
-            loadSavedData()
-        }
-    }
-    
-    private suspend fun loadSavedData() {
-        withContext(Dispatchers.IO) {
+        viewModelScope.launch(Dispatchers.IO) {
             val installedPlugins = repository.getInstalledPlugins()
             val savedItems = repository.getSavedScheduleItems()
+            
+            val futureAlarmsCount = withContext(Dispatchers.Default) {
+                savedItems.count { it.startTime > System.currentTimeMillis() }
+            }
             
             withContext(Dispatchers.Main) {
                 _plugins.value = installedPlugins
                 pluginCount.value = installedPlugins.size
                 eventCount.value = savedItems.size
-                alarmCount.value = savedItems.count { it.startTime > System.currentTimeMillis() }
+                alarmCount.value = futureAlarmsCount
             }
         }
     }
@@ -102,15 +99,21 @@ class DataVM(application: Application) : AndroidViewModel(application) {
     }
     
     fun importPluginJson(uri: Uri) {
-        val plugin = PluginLoader.loadPluginFromUri(context, uri)
-        
-        if (plugin != null) {
-            _plugins.value = _plugins.value + plugin
-            pluginCount.value = _plugins.value.size
-            Log.d("DataVM", "Plugin imported successfully: ${plugin.id}")
-        } else {
-            syncState.value = SyncState.Error("Failed to import plugin from URI")
-            Log.e("DataVM", "Failed to import plugin from URI")
+        viewModelScope.launch(Dispatchers.IO) {
+            val plugin = PluginLoader.loadPluginFromUri(context, uri)
+            if (plugin != null) {
+                repository.addPlugin(plugin)
+                val updatedPlugins = repository.getInstalledPlugins()
+                
+                withContext(Dispatchers.Main) {
+                    _plugins.value = updatedPlugins
+                    pluginCount.value = updatedPlugins.size
+                }
+            } else {
+                withContext(Dispatchers.Main) {
+                    syncState.value = SyncState.Error("Failed to import plugin")
+                }
+            }
         }
     }
 

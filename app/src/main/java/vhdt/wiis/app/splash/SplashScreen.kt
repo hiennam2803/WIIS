@@ -37,9 +37,10 @@ fun SplashScreen(
 		if (!hasNavigated.value && progress >= 1.0f) {
 			hasNavigated.value = true
 			navController.navigate(NavRoutes.Calendar) {
-				popUpTo(NavRoutes.Splash) {
+				popUpTo(navController.graph.startDestinationId) {
 					inclusive = true
 				}
+				launchSingleTop = true
 			}
 		}
 	}

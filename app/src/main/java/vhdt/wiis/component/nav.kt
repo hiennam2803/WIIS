@@ -38,11 +38,10 @@ fun NavGraph(
 	val navBackStackEntry = navController.currentBackStackEntryAsState()
 	val currentRoute = navBackStackEntry.value?.destination?.route
 	val showBottomBar = currentRoute == NavRoutes.Calendar ||
-		currentRoute == NavRoutes.Data ||
-		currentRoute == NavRoutes.Setting
+			currentRoute == NavRoutes.Data ||
+			currentRoute == NavRoutes.Setting
 
 	Box(modifier = Modifier.fillMaxSize()) {
-		// Render background once, not dependent on showBottomBar
 		if (showBottomBar) {
 			Image(
 				painter = painterResource(id = R.drawable.background),
@@ -67,6 +66,7 @@ fun NavGraph(
 		) { innerPadding ->
 			NavHost(
 				navController = navController,
+				// Giữ nguyên startDestination gốc là Splash để mở app lên chạy splash
 				startDestination = NavRoutes.Splash,
 				modifier = modifier
 					.fillMaxSize()
