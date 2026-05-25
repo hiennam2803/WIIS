@@ -57,35 +57,45 @@ class ScheduleRepository(
     }
     
     @RequiresApi(Build.VERSION_CODES.O)
-    suspend fun fetchCurrentWeekSchedule(plugin: SchoolPlugin): SyncState {
+    suspend fun fetchSchedule(plugin: SchoolPlugin, weeks: Int = 4): SyncState {
         // Check if plugin is valid
         if (plugin.id.isBlank()) {
             return SyncState.NoPlugin
         }
         
         // Check if JWT token exists
-        val jwtToken = getJwtToken(plugin.id) ?: return SyncState.Error("Chưa đăng nhập")
+        val jwtToken = getJwtToken(plugin.id) ?: return SyncState.Error("AUTH_REQUIRED")
         
-        // Fetch schedule for current week
+        // Fetch schedule for multiple weeks
         return try {
-            val currentDate = LocalDate.now()
-                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
-            val scheduleItems = apiClient.fetchWeekSchedule(plugin, jwtToken, currentDate)
-            
-            // If null → 401 Unauthorized → token expired
-            if (scheduleItems == null) {
-                return SyncState.Error("AUTH_REQUIRED")
+            val allItems = mutableListOf<ScheduleItem>()
+            val today = LocalDate.now()
+
+            repeat(weeks) { weekIndex ->
+                val dateStr = today.plusWeeks(weekIndex.toLong())
+                    .format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+                val items = apiClient.fetchWeekSchedule(plugin, jwtToken, dateStr)
+                if (items != null) allItems.addAll(items)
             }
-            
-            if (scheduleItems.isEmpty()) {
-                SyncState.Error("Không có lịch cho tuần này")
+
+            val uniqueItems = allItems.distinctBy { it.id }
+
+            if (uniqueItems.isEmpty()) {
+                SyncState.Error("Không có lịch")
             } else {
-                saveScheduleItems(scheduleItems)
-                SyncState.Success(scheduleItems)
+                saveScheduleItems(uniqueItems)
+                SyncState.Success(uniqueItems)
             }
         } catch (e: Exception) {
-            SyncState.Error("Lỗi khi tải lịch: ${e.message}")
+            SyncState.Error("Lỗi: ${e.message}")
         }
+    }
+
+
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    suspend fun fetchCurrentWeekSchedule(plugin: SchoolPlugin): SyncState {
+        return fetchSchedule(plugin, 1)
     }
     
     fun saveScheduleItems(items: List<ScheduleItem>) {

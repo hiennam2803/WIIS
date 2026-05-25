@@ -39,6 +39,10 @@ class DataVM(application: Application) : AndroidViewModel(application) {
             .count { it.startTime > System.currentTimeMillis() }
     )
 
+    val syncWeeks = mutableStateOf(
+        prefs.getInt("syncWeeks", 4)
+    )
+
     val syncState = mutableStateOf<SyncState>(SyncState.Idle)
 
     init {
@@ -66,7 +70,7 @@ class DataVM(application: Application) : AndroidViewModel(application) {
                 return@launch
             }
             
-            val result = repository.fetchCurrentWeekSchedule(activePlugin)
+            val result = repository.fetchSchedule(activePlugin, syncWeeks.value)
             syncState.value = result
 
             if (result is SyncState.Success) {
@@ -111,5 +115,10 @@ class DataVM(application: Application) : AndroidViewModel(application) {
     fun saveJwtToken(token: String) {
         val plugin = repository.getInstalledPlugins().firstOrNull() ?: return
         repository.saveJwtToken(plugin.id, token)
+    }
+
+    fun setSyncWeeks(weeks: Int) {
+        syncWeeks.value = weeks
+        prefs.edit().putInt("syncWeeks", weeks).apply()
     }
 }
