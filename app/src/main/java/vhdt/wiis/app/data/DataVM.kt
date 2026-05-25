@@ -10,6 +10,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.compose.runtime.mutableStateOf
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import vhdt.wiis.data.local.PluginLoader
 import vhdt.wiis.data.remote.ScheduleApiClient
 import vhdt.wiis.data.repository.ScheduleRepository
@@ -34,10 +36,7 @@ class DataVM(application: Application) : AndroidViewModel(application) {
 
     val pluginCount = mutableStateOf(0)
     val eventCount = mutableStateOf(0)
-    val alarmCount = mutableStateOf(
-        repository.getSavedScheduleItems()
-            .count { it.startTime > System.currentTimeMillis() }
-    )
+    val alarmCount = mutableStateOf(0)
 
     val syncWeeks = mutableStateOf(
         prefs.getInt("syncWeeks", 4)
@@ -46,16 +45,24 @@ class DataVM(application: Application) : AndroidViewModel(application) {
     val syncState = mutableStateOf<SyncState>(SyncState.Idle)
 
     init {
-        loadSavedData()
+        // Load data asynchronously to avoid blocking main thread
+        viewModelScope.launch {
+            loadSavedData()
+        }
     }
     
-    private fun loadSavedData() {
-        val installedPlugins = repository.getInstalledPlugins()
-        _plugins.value = installedPlugins
-        pluginCount.value = installedPlugins.size
-        
-        val savedItems = repository.getSavedScheduleItems()
-        eventCount.value = savedItems.size
+    private suspend fun loadSavedData() {
+        withContext(Dispatchers.IO) {
+            val installedPlugins = repository.getInstalledPlugins()
+            val savedItems = repository.getSavedScheduleItems()
+            
+            withContext(Dispatchers.Main) {
+                _plugins.value = installedPlugins
+                pluginCount.value = installedPlugins.size
+                eventCount.value = savedItems.size
+                alarmCount.value = savedItems.count { it.startTime > System.currentTimeMillis() }
+            }
+        }
     }
     
     @RequiresApi(Build.VERSION_CODES.O)

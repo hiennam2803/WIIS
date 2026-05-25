@@ -1,5 +1,6 @@
 package vhdt.wiis.app.calendar
 
+import android.graphics.drawable.Icon
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.animateContentSize
@@ -11,7 +12,9 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.with
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -39,7 +42,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -69,76 +76,86 @@ fun CalendarScreen(viewModel: CalendarVM = viewModel()) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0x00FFF0F0))
+            .background(Color(0x00FFFFFF))
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp)
             .padding(bottom = 24.dp)
     ) {
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        // Header với nút prev/next
-        Row(
+        // Header với nút prev/next - Premium Design
+        Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .shadow(4.dp, RoundedCornerShape(12.dp))
-                .clip(RoundedCornerShape(12.dp))
-                .background(Color(0xFFE2EEFF)),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .height(72.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0x00FFFFFF)),
         ) {
-            Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = Color(0xFF1856BB),
+            Row(
                 modifier = Modifier
-                    .clickable { viewModel.goToPreviousMonth() }
-                    .padding(8.dp)
-                    .size(36.dp)
+                    .fillMaxSize()
+                    .padding(horizontal = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    contentAlignment = Alignment.Center,
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color(0xFF1856BB),
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(start = 5.dp)
+                        .clickable { viewModel.goToPreviousMonth() }
+                        .size(44.dp),
+                    shadowElevation = 4.dp
                 ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.arrow_back_ios_24px),
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(18.dp)
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.arrow_back_ios_24px),
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier
+                                .size(20.dp)
+                                .padding(start = 4.dp) // Đẩy icon sang phải để cân bằng với nút next
+                        )
+                    }
+                }
+
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = "Tháng ${viewModel.displayMonth.value.monthValue}",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1856BB)
+                    )
+                    Text(
+                        text = "Năm ${viewModel.displayMonth.value.year}",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF64748B)
                     )
                 }
-            }
 
-            Text(
-                text = "Tháng ${viewModel.displayMonth.value.monthValue} / ${viewModel.displayMonth.value.year}",
-                fontSize = 24.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = Color(0xFF1856BB),
-            )
-
-            Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = Color(0xFF1856BB),
-                modifier = Modifier
-                    .clickable { viewModel.goToNextMonth() }
-                    .padding(8.dp)
-                    .size(36.dp)
-            ) {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.fillMaxSize()
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color(0xFF1856BB),
+                    modifier = Modifier
+                        .clickable { viewModel.goToNextMonth() }
+                        .size(44.dp),
+                    shadowElevation = 4.dp
                 ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.arrow_forward_ios_24px),
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(18.dp)
-                    )
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.arrow_forward_ios_24px),
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         MonthCalendarGrid(
             displayMonth = viewModel.displayMonth.value,
@@ -147,16 +164,28 @@ fun CalendarScreen(viewModel: CalendarVM = viewModel()) {
             hasTasksOnDate = { viewModel.hasTasksOnDate(it) }
         )
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         TodaySummaryCard(
             viewModel.selectedDate.value,
             viewModel.getTasksForDate(viewModel.selectedDate.value).size
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = "LỊCH TRÌNH",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF94A3B8),
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
 
         TimelineSection(viewModel)
+
+        Spacer(modifier = Modifier.height(80.dp))
     }
 }
 
@@ -172,91 +201,111 @@ private fun MonthCalendarGrid(
     val firstDayOfMonth = displayMonth.atDay(1)
     val startDay = firstDayOfMonth.minusDays(firstDayOfMonth.dayOfWeek.value.toLong() - 1)
 
-    Column {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .shadow(4.dp, RoundedCornerShape(12.dp))
-                .clip(RoundedCornerShape(12.dp))
-                .background(Color(0xFFFFFFFF)),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            dayLabels.forEach { day ->
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(32.dp)
-                ) {
-                    Text(
-                        day,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF64748B)
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        repeat(6) { weekIndex ->
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            // Day labels header
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                repeat(7) { dayIndex ->
-                    val date = startDay.plusDays((weekIndex * 7 + dayIndex).toLong())
-                    val isCurrentMonth = date.month == displayMonth.month
-                    val isSelected = date == selectedDate
-
+                dayLabels.forEach { day ->
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier
                             .weight(1f)
-                            .height(48.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(
-                                when {
-                                    isSelected -> Color(0xFF205FC6)
-                                    else -> Color(0x00FFFFFF)
-                                }
-                            )
-                            .clickable(enabled = isCurrentMonth) { onDateSelected(date) }
+                            .height(36.dp)
                     ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center,
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            Text(
-                                date.dayOfMonth.toString(),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = when {
-                                    isSelected -> Color.White
-                                    isCurrentMonth -> Color(0xFF131B24)
-                                    else -> Color(0xFF9FADBF)
-                                }
-                            )
-                            if (hasTasksOnDate(date)) {
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Box(
-                                    modifier = Modifier
-                                        .size(6.dp)
-                                        .clip(CircleShape)
-                                        .background(
-                                            if (isSelected) Color.White else Color(0xFF0868EF)
-                                        )
-                                )
-                            }
-                        }
+                        Text(
+                            day,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF94A3B8)
+                        )
                     }
                 }
             }
 
-            if (weekIndex < 5) {
-                Spacer(modifier = Modifier.height(4.dp))
+            // Calendar dates
+            val weekRows = (0..5).map { weekIndex ->
+                (0..6).map { dayIndex ->
+                    startDay.plusDays((weekIndex * 7 + dayIndex).toLong())
+                }
+            }
+            
+            weekRows.forEach { weekDates ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    weekDates.forEach { date ->
+                        key(date) {  // ADD KEY ĐỂ TỐI ƯU RECOMPOSE
+                            val isCurrentMonth = date.month == displayMonth.month
+                            val isSelected = date == selectedDate
+                            val hasTask = hasTasksOnDate(date)
+                            val isToday = date == LocalDate.now()
+
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(56.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(
+                                        when {
+                                            isSelected -> Color(0xFF1856BB)
+                                            hasTask && isCurrentMonth -> Color(0xFFF0F8FF)
+                                            else -> Color(0xFFFAFAFA)
+                                        },
+                                        shape = RoundedCornerShape(14.dp)
+                                    )
+                                    .clickable(enabled = isCurrentMonth) { onDateSelected(date) }
+                                    .border(
+                                        width = if (isToday && !isSelected) 2.dp else 0.dp,
+                                        color = if (isToday && !isSelected) Color(0xFF1856BB) else Color.Transparent,
+                                        shape = RoundedCornerShape(14.dp)
+                                    )
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center,
+                                    modifier = Modifier.fillMaxSize()
+                                ) {
+                                    Text(
+                                        date.dayOfMonth.toString(),
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = when {
+                                            isSelected -> Color.White
+                                            isCurrentMonth -> Color(0xFF1E293B)
+                                            else -> Color(0xFFCBD5E1)
+                                        }
+                                    )
+                                    if (hasTask) {
+                                        Spacer(modifier = Modifier.height(3.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .size(5.dp)
+                                                .clip(CircleShape)
+                                                .background(
+                                                    if (isSelected) Color.White else Color(0xFF1856BB)
+                                                )
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -278,31 +327,59 @@ private fun TodaySummaryCard(selectedDate: LocalDate, taskCount: Int) {
     val dateText = selectedDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
 
     Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFDBEAFE)),
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = BorderStroke(1.dp, Color(0xFF93C5FD))
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFF3766CB)
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(100.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+        border = BorderStroke(1.dp, Color(0xFF14489C).copy(alpha = 0.3f))
     ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .fillMaxSize()
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = dayOfWeekText,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                Text(
+                    text = dateText,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White.copy(alpha = 0.8f)
+                )
+            }
+
             Box(
                 modifier = Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFF1856BB))
-            )
-            Spacer(modifier = Modifier.width(10.dp))
-            Text(
-                text = "$dayOfWeekText, $dateText - $taskCount nhiệm vụ",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF1E3A8A)
-            )
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color.White.copy(alpha = 0.2f))
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = taskCount.toString(),
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.White
+                    )
+                    Text(
+                        text = "nhiệm vụ",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White.copy(alpha = 0.8f)
+                    )
+                }
+            }
         }
     }
 }
@@ -312,55 +389,87 @@ private fun TodaySummaryCard(selectedDate: LocalDate, taskCount: Int) {
 private fun TimelineSection(viewModel: CalendarVM) {
     val tasksForSelectedDate = viewModel.getTasksForDate(viewModel.selectedDate.value)
 
+    if (tasksForSelectedDate.isEmpty()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(120.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(Color(0x00FFFFFF)),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.calendar_today_24px),
+                    contentDescription = null,
+                    tint = Color(0xFF94A3B8),
+                    modifier = Modifier.size(40.dp)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Không có lịch trình",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF94A3B8)
+                )
+            }
+        }
+        return
+    }
+
     Column(modifier = Modifier.fillMaxWidth()) {
         tasksForSelectedDate.forEachIndexed { index, task ->
-            val isExpanded = viewModel.expandedItems.value.contains(index)
-            val isLast = index == tasksForSelectedDate.lastIndex
+            key(task.id) {  // ADD KEY BASED ON TASK ID
+                val isExpanded = viewModel.expandedItems.value.contains(index)
+                val isLast = index == tasksForSelectedDate.lastIndex
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(IntrinsicSize.Min)
-            ) {
-                // Timeline indicator
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.width(24.dp)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(IntrinsicSize.Min)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(12.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF1856BB))
-                    )
-                    if (!isLast) {
+                    // Timeline indicator
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.width(20.dp)
+                    ) {
                         Box(
                             modifier = Modifier
-                                .fillMaxHeight()
-                                .width(2.dp)
-                                .background(Color(0xFFCBD5E1))
+                                .size(10.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF1856BB))
                         )
+                        if (!isLast) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .width(2.dp)
+                                    .background(Color(0xFF1856BB).copy(alpha = 0.3f))
+                            )
+                        }
                     }
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    TimelineTaskCard(
+                        time = Instant.ofEpochMilli(task.startTime)
+                            .atZone(ZoneId.systemDefault())
+                            .toLocalTime()
+                            .format(DateTimeFormatter.ofPattern("HH:mm")),
+                        endTime = Instant.ofEpochMilli(task.endTime)
+                            .atZone(ZoneId.systemDefault())
+                            .toLocalTime()
+                            .format(DateTimeFormatter.ofPattern("HH:mm")),
+                        title = task.title,
+                        isExpanded = isExpanded,
+                        task = task,
+                        onToggle = { viewModel.toggleTaskExpanded(index) },
+                        modifier = Modifier.padding(bottom = if (isLast) 0.dp else 16.dp)
+                    )
                 }
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                // FIX 3: truyền đầy đủ task + endTime
-                TimelineTaskCard(
-                    time = Instant.ofEpochMilli(task.startTime)
-                        .atZone(ZoneId.systemDefault())
-                        .toLocalTime()
-                        .format(DateTimeFormatter.ofPattern("HH:mm")),
-                    endTime = Instant.ofEpochMilli(task.endTime)
-                        .atZone(ZoneId.systemDefault())
-                        .toLocalTime()
-                        .format(DateTimeFormatter.ofPattern("HH:mm")),
-                    title = task.title,
-                    isExpanded = isExpanded,
-                    task = task,
-                    onToggle = { viewModel.toggleTaskExpanded(index) },
-                    modifier = Modifier.padding(bottom = if (isLast) 0.dp else 20.dp)
-                )
             }
         }
     }
@@ -377,14 +486,22 @@ private fun TimelineTaskCard(
     onToggle: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val expandedContentRequester = remember { BringIntoViewRequester() }
+
+    LaunchedEffect(isExpanded) {
+        if (isExpanded) {
+            expandedContentRequester.bringIntoView()
+        }
+    }
+
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .animateContentSize(animationSpec = tween(durationMillis = 300)),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+            .animateContentSize(animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0x00FFFFFF)),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+        border = BorderStroke(1.5.dp, if (isExpanded) Color(0xFF02368B).copy(alpha = 0.3f) else Color(0xFFE2E8F0))
     ) {
         Column(
             modifier = Modifier
@@ -393,114 +510,146 @@ private fun TimelineTaskCard(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null
                 ) { onToggle() }
-                .padding(16.dp)
+                .padding(14.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Badge giờ
+                // Time badge
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFF1856BB).copy(alpha = 0.10f))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFF1856BB).copy(alpha = 0.12f))
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
                     Text(
                         text = time,
-                        fontSize = 13.sp,
+                        fontSize = 14.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = Color(0xFF1856BB)
                     )
                 }
 
-                Spacer(modifier = Modifier.width(12.dp))
-
+                // Title
                 Text(
                     text = title,
                     modifier = Modifier.weight(1f),
-                    fontSize = 14.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF1E293B),
                     maxLines = if (isExpanded) Int.MAX_VALUE else 1,
                     overflow = TextOverflow.Ellipsis
                 )
 
-                Icon(
-                    painter = painterResource(
-                        id = if (isExpanded) R.drawable.arrow_drop_up_24px
-                        else R.drawable.arrow_drop_down_24px
-                    ),
-                    contentDescription = null,
-                    tint = Color(0xFF94A3B8),
-                    modifier = Modifier.size(20.dp)
-                )
+                // Expand icon
+                Surface(
+                    shape = CircleShape,
+                    color = if (isExpanded) Color(0xFF1856BB).copy(alpha = 0.1f) else Color(0xFFF1F5F9),
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                        Icon(
+                            painter = painterResource(
+                                id = if (isExpanded) R.drawable.arrow_drop_up_24px
+                                else R.drawable.arrow_drop_down_24px
+                            ),
+                            contentDescription = null,
+                            tint = Color(0xFF1856BB),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
             }
 
             if (isExpanded) {
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // FIX 1: dùng Box thay Divider
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(1.dp)
-                        .background(Color(0xFFE2E8F0))
-                )
+                        .bringIntoViewRequester(expandedContentRequester)
+                ) {
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Mã lớp
-                if (task.classCode.isNotEmpty()) {
-                    InfoRow(icon = "📋", label = "Mã lớp", value = task.classCode)
-                }
-
-                // Tiết học
-                if (task.fromPeriod > 0) {
-                    InfoRow(
-                        icon = "📚",
-                        label = "Tiết học",
-                        value = "Tiết: ${task.fromPeriod} - ${task.toPeriod}"
+                    // Divider
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(Color(0xFF1856BB).copy(alpha = 0.1f))
                     )
-                }
 
-                // FIX 2: dùng $time thay $startTime
-                InfoRow(
-                    icon = "⏰",
-                    label = "Thời gian",
-                    value = "$time - $endTime"
-                )
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                // Phòng học
-                InfoRow(
-                    icon = "📍",
-                    label = "Phòng học",
-                    value = task.location
-                )
+                    // Details
+                    if (task.classCode.isNotEmpty()) {
+                        InfoRow(icon = R.drawable.book_24px, label = "Mã lớp", value = task.classCode)
+                        Spacer(modifier = Modifier.height(2.dp))
+                    }
 
-                // Địa chỉ / Cơ sở
-                if (task.address.isNotEmpty()) {
-                    InfoRow(icon = "🏫", label = "Cơ sở", value = task.address)
-                } else if (task.note.isNotEmpty()) {
-                    InfoRow(icon = "🏫", label = "Cơ sở", value = task.note)
+                    if (task.fromPeriod > 0) {
+                        InfoRow(
+                            icon = R.drawable.book_ribbon_24px,
+                            label = "Tiết học",
+                            value = "Tiết: ${task.fromPeriod} - ${task.toPeriod}"
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                    }
+
+                    InfoRow(
+                        icon = R.drawable.alarm_24px,
+                        label = "Thời gian",
+                        value = "$time - $endTime"
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+
+                    InfoRow(
+                        icon = R.drawable.location_on_24px,
+                        label = "Phòng học",
+                        value = task.location
+                    )
+
+                    if (task.address.isNotEmpty() || task.note.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        InfoRow(
+                            icon = R.drawable.school_24px,
+                            label = "Cơ sở",
+                            value = task.address.ifEmpty { task.note }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
                 }
             }
         }
     }
 }
 
-// FIX 4: thêm InfoRow function
+// Improved InfoRow with better styling
 @Composable
-private fun InfoRow(icon: String, label: String, value: String) {
+private fun InfoRow(icon: Int, label: String, value: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.Top
+            .padding(vertical = 0.dp),
+        verticalAlignment = Alignment.Top,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Text(icon, fontSize = 13.sp)
-        Spacer(modifier = Modifier.width(8.dp))
-        Column {
+        Box(
+            modifier = Modifier
+                .clip(CircleShape)
+                .background(Color(0xFF7AA3E7))
+                .size(28.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Image(
+                painter = painterResource(id = icon),
+                contentDescription = null,
+                modifier = Modifier.size(14.dp)
+            )
+        }
+
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = label,
                 fontSize = 11.sp,
@@ -510,7 +659,8 @@ private fun InfoRow(icon: String, label: String, value: String) {
             Text(
                 text = value,
                 fontSize = 13.sp,
-                color = Color(0xFF334155)
+                color = Color(0xFF334155),
+                fontWeight = FontWeight.Medium
             )
         }
     }

@@ -49,6 +49,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -81,8 +82,11 @@ fun DataScreen(
         contract = ActivityResultContracts.GetContent()
     ) { uri -> uri?.let { viewModel.importPluginJson(it) } }
 
-    val filteredPlugins = viewModel.plugins.filter {
-        it.schoolName.contains(searchQuery, ignoreCase = true)
+    // Memoize filteredPlugins để tránh recalculate mỗi frame
+    val filteredPlugins = remember(searchQuery, viewModel.plugins) {
+        viewModel.plugins.filter {
+            it.schoolName.contains(searchQuery, ignoreCase = true)
+        }
     }
 
     LaunchedEffect(viewModel.syncState.value) {
@@ -187,7 +191,7 @@ fun DataScreen(
                 )
             }
         } else {
-            items(filteredPlugins) { plugin ->
+            items(filteredPlugins, key = { it.schoolName }) { plugin ->
                 PluginCard(
                     name = plugin.schoolName,
                     location = plugin.loginUrl,
@@ -295,12 +299,12 @@ private fun SyncButtonSection(
             modifier = Modifier
                 .size(170.dp)
                 .clip(CircleShape)
-                .background(Color(0xFF1856BB).copy(alpha = haloAlpha)),
+                .background(Color(0xFF1A87A3).copy(alpha = haloAlpha)),
             contentAlignment = Alignment.Center
         ) {
             Surface(
                 shape = CircleShape,
-                color = Color(0xFF1856BB),
+                color = Color(0xFF462BD7),
                 modifier = Modifier
                     .size(150.dp)
                     .graphicsLayer {
@@ -324,7 +328,7 @@ private fun SyncButtonSection(
                     modifier = Modifier.fillMaxSize()
                 ) {
                     Icon(
-                        painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                        painter = painterResource(id = R.drawable.sync_24px),
                         contentDescription = null,
                         tint = Color.White,
                         modifier = Modifier
@@ -333,7 +337,7 @@ private fun SyncButtonSection(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = if (isSyncing) "Đang sync..." else "Đồng bộ",
+                        text = if (isSyncing) "Đang đồng bộ..." else "Đồng bộ",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White,
@@ -349,7 +353,7 @@ private fun SyncButtonSection(
             is SyncState.Loading -> {
                 Text(
                     text = "Đang đồng bộ...",
-                    fontSize = 12.sp,
+                    fontSize = 16.sp,
                     color = Color(0xFF1856BB),
                     fontWeight = FontWeight.SemiBold
                 )
@@ -358,7 +362,7 @@ private fun SyncButtonSection(
             is SyncState.Success -> {
                 Text(
                     text = "Đồng bộ thành công!",
-                    fontSize = 12.sp,
+                    fontSize = 16.sp,
                     color = Color(0xFF22C55E),
                     fontWeight = FontWeight.SemiBold
                 )
@@ -366,13 +370,12 @@ private fun SyncButtonSection(
 
             is SyncState.Error -> {
                 Text(
-                    text = state.message,
-                    fontSize = 12.sp,
+                    text = "Đồng bộ thất bại: ${state.message}",
+                    fontSize = 16.sp,
                     color = Color(0xFFEF4444),
                     fontWeight = FontWeight.SemiBold
                 )
             }
-
             else -> {}
         }
     }
@@ -396,7 +399,7 @@ private fun SyncWeeksSelector(viewModel: DataVM) {
             ) {
                 Text(
                     "Phạm vi cập nhật",
-                    fontSize = 13.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF1E293B)
                 )

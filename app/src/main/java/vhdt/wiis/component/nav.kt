@@ -42,6 +42,7 @@ fun NavGraph(
 		currentRoute == NavRoutes.Setting
 
 	Box(modifier = Modifier.fillMaxSize()) {
+		// Render background once, not dependent on showBottomBar
 		if (showBottomBar) {
 			Image(
 				painter = painterResource(id = R.drawable.background),

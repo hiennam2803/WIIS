@@ -4,7 +4,11 @@ import android.app.Application
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
 import androidx.compose.runtime.mutableStateOf
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
@@ -27,17 +31,52 @@ class CalendarVM(application: Application) : AndroidViewModel(application) {
     val expandedItems = mutableStateOf(setOf<Int>())
     
     val tasks = mutableStateOf<List<ScheduleItem>>(emptyList())
+    // Cache: Map<LocalDate, List<ScheduleItem>> để tránh tính toán lặp lại
+    private var tasksByDateCache = mutableMapOf<LocalDate, List<ScheduleItem>>()
+    private var cachedTasksList: List<ScheduleItem> = emptyList()
 
     init {
-        loadScheduleItems()
+        // Load schedule items asynchronously to avoid blocking main thread
+        viewModelScope.launch {
+            loadScheduleItems()
+        }
     }
 
-    private fun loadScheduleItems() {
-        tasks.value = repository.getSavedScheduleItems()
+    private suspend fun loadScheduleItems() {
+        withContext(Dispatchers.IO) {
+            val items = repository.getSavedScheduleItems()
+            withContext(Dispatchers.Main) {
+                tasks.value = items
+                updateTasksCache()
+            }
+        }
     }
 
     fun refreshTasks() {
-        tasks.value = repository.getSavedScheduleItems()
+        viewModelScope.launch {
+            val items = withContext(Dispatchers.IO) {
+                repository.getSavedScheduleItems()
+            }
+            tasks.value = items
+            updateTasksCache()
+        }
+    }
+
+    private fun updateTasksCache() {
+        // Chỉ tính toán nếu tasks thay đổi
+        if (cachedTasksList != tasks.value) {
+            cachedTasksList = tasks.value
+            tasksByDateCache.clear()
+            
+            // Build cache một lần
+            tasks.value.forEach { task ->
+                val date = Instant.ofEpochMilli(task.startTime)
+                    .atZone(ZoneId.systemDefault())
+                    .toLocalDate()
+                val existing = tasksByDateCache[date] ?: emptyList()
+                tasksByDateCache[date] = existing + task
+            }
+        }
     }
 
     fun selectDate(date: LocalDate) {
@@ -61,18 +100,12 @@ class CalendarVM(application: Application) : AndroidViewModel(application) {
     }
 
     fun hasTasksOnDate(date: LocalDate): Boolean {
-        return tasks.value.any { task ->
-            Instant.ofEpochMilli(task.startTime)
-                .atZone(ZoneId.systemDefault())
-                .toLocalDate() == date
-        }
+        updateTasksCache()
+        return tasksByDateCache.containsKey(date)
     }
 
     fun getTasksForDate(date: LocalDate): List<ScheduleItem> {
-        return tasks.value.filter { task ->
-            Instant.ofEpochMilli(task.startTime)
-                .atZone(ZoneId.systemDefault())
-                .toLocalDate() == date
-        }
+        updateTasksCache()
+        return tasksByDateCache[date] ?: emptyList()
     }
 }
