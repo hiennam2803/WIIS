@@ -58,6 +58,18 @@ class DataVM(application: Application) : AndroidViewModel(application) {
                 pluginCount.value = installedPlugins.size
                 eventCount.value = savedItems.size
                 alarmCount.value = futureAlarmsCount
+                
+                // Schedule daily summary alarm on app startup
+                AlarmScheduler.scheduleDailySummaryAlarm(context)
+                
+                // Reschedule individual alarms for saved items
+                if (savedItems.isNotEmpty()) {
+                    AlarmScheduler.scheduleAllAlarms(
+                        context,
+                        savedItems,
+                        prefs.getInt("notifyMinutesBefore", 60)
+                    )
+                }
             }
         }
     }
@@ -77,16 +89,21 @@ class DataVM(application: Application) : AndroidViewModel(application) {
             val result = repository.fetchSchedule(activePlugin, syncWeeks.value)
             syncState.value = result
 
+            if (result is SyncState.Error && result.message == "AUTH_REQUIRED") {
+                // JWT expired — token already cleared in repository
+                // LaunchedEffect in DataScreen will catch this and open WebView
+                return@launch
+            }
+
             if (result is SyncState.Success) {
                 repository.saveScheduleItems(result.items)
                 eventCount.value = result.items.size
-
-                // THÊM 2 dòng này
                 AlarmScheduler.scheduleAllAlarms(
                     context,
                     result.items,
                     prefs.getInt("notifyMinutesBefore", 60)
                 )
+                AlarmScheduler.scheduleDailySummaryAlarm(context)
                 alarmCount.value = result.items
                     .count { it.startTime > System.currentTimeMillis() }
             }
@@ -125,6 +142,11 @@ class DataVM(application: Application) : AndroidViewModel(application) {
     fun saveJwtToken(token: String) {
         val plugin = repository.getInstalledPlugins().firstOrNull() ?: return
         repository.saveJwtToken(plugin.id, token)
+    }
+    
+    fun clearJwtToken() {
+        val plugin = repository.getInstalledPlugins().firstOrNull() ?: return
+        repository.clearJwtToken(plugin.id)
     }
 
     fun setSyncWeeks(weeks: Int) {

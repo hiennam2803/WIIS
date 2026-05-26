@@ -7,6 +7,9 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import vhdt.wiis.data.local.PluginLoader
 import vhdt.wiis.data.remote.ScheduleApiClient
 import vhdt.wiis.model.SchoolPlugin
@@ -14,6 +17,7 @@ import vhdt.wiis.model.ScheduleItem
 import vhdt.wiis.model.SyncState
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+
 
 class ScheduleRepository(
     private val context: Context,
@@ -36,6 +40,9 @@ class ScheduleRepository(
     private val regularPrefs = context.getSharedPreferences("schedule_data", Context.MODE_PRIVATE)
     private var cachedPlugins: List<SchoolPlugin>? = null
     private var cachedScheduleItems: List<ScheduleItem>? = null
+    
+    private val _scheduleItems = MutableStateFlow<List<ScheduleItem>>(emptyList())
+    val scheduleItems: StateFlow<List<ScheduleItem>> = _scheduleItems.asStateFlow()
     
     companion object {
         private const val SCHEDULE_ITEMS_KEY = "schedule_items"
@@ -66,6 +73,7 @@ class ScheduleRepository(
                 emptyList()
             }
         }
+        _scheduleItems.value = cachedScheduleItems ?: emptyList()
         return cachedScheduleItems ?: emptyList()
     }
     
@@ -80,6 +88,10 @@ class ScheduleRepository(
     
     fun getJwtToken(schoolId: String): String? {
         return encryptedPrefs.getString("$JWT_KEY_PREFIX$schoolId", null)
+    }
+    
+    fun clearJwtToken(schoolId: String) {
+        encryptedPrefs.edit().remove("$JWT_KEY_PREFIX$schoolId").apply()
     }
     
     @RequiresApi(Build.VERSION_CODES.O)
@@ -101,7 +113,12 @@ class ScheduleRepository(
                 val dateStr = today.plusWeeks(weekIndex.toLong())
                     .format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
                 val items = apiClient.fetchWeekSchedule(plugin, jwtToken, dateStr)
-                if (items != null) allItems.addAll(items)
+                if (items == null) {
+                    // 401 Unauthorized — clear saved JWT and signal re-login
+                    encryptedPrefs.edit().remove("$JWT_KEY_PREFIX${plugin.id}").apply()
+                    return SyncState.Error("AUTH_REQUIRED")
+                }
+                allItems.addAll(items)
             }
 
             val uniqueItems = allItems.distinctBy { it.id }
@@ -126,6 +143,7 @@ class ScheduleRepository(
         val jsonString = json.encodeToString(items)
         regularPrefs.edit().putString(SCHEDULE_ITEMS_KEY, jsonString).apply()
         cachedScheduleItems = items
+        _scheduleItems.value = items
     }
     
     fun clearAllData() {

@@ -1,6 +1,7 @@
 package vhdt.wiis.app.calendar
 
 import android.app.Application
+import android.content.Context
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.lifecycle.AndroidViewModel
@@ -9,6 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.collect
 import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
@@ -36,9 +38,14 @@ class CalendarVM(application: Application) : AndroidViewModel(application) {
     private var cachedTasksList: List<ScheduleItem> = emptyList()
 
     init {
-        // Load schedule items asynchronously to avoid blocking main thread
         viewModelScope.launch {
-            loadScheduleItems()
+            repository.scheduleItems.collect { items ->
+                tasks.value = items
+                updateTasksCache()
+            }
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.getSavedScheduleItems()
         }
     }
 

@@ -1,6 +1,7 @@
 {
   "id": "uth_hcmc",
   "schoolName": "ĐH Giao thông Vận tải TPHCM",
+  "logoUrl": "https://portal.ut.edu.vn/images/sv_logo_dashboard.png",
   "loginUrl": "https://portal.ut.edu.vn",
   "scheduleEndpoint": "https://portal.ut.edu.vn/api/v1/lichhoc/lichTuan",
   "authType": "jwt_bearer",

@@ -35,6 +35,20 @@
         <receiver
             android:name=".scheduler.AlarmReceiver"
             android:exported="false"/>
+        
+        <!-- Daily summary receiver -->
+        <receiver
+            android:name=".scheduler.DailySummaryReceiver"
+            android:exported="false"/>
+        
+        <!-- Boot receiver -->
+        <receiver
+            android:name=".scheduler.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+            </intent-filter>
+        </receiver>
 
     </application>
 

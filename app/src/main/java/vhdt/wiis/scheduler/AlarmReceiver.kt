@@ -27,11 +27,15 @@ class AlarmReceiver : BroadcastReceiver() {
     @RequiresPermission(Manifest.permission.VIBRATE)
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onReceive(context: Context, intent: Intent) {
+        val itemId = intent.getStringExtra(EXTRA_ITEM_ID) ?: return
         val title = intent.getStringExtra(EXTRA_TITLE) ?: return
         val location = intent.getStringExtra(EXTRA_LOCATION) ?: ""
         val startTime = intent.getLongExtra(EXTRA_START_TIME, 0L)
         
         Log.d(TAG, "AlarmReceiver triggered for: $title")
+        
+        // Create notification channel first
+        NotificationHelper.createNotificationChannel(context)
         
         // Read settings from SharedPreferences
         val prefs = context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
@@ -52,7 +56,9 @@ class AlarmReceiver : BroadcastReceiver() {
             return
         }
         
-        NotificationHelper.showNotification(context, title, location, startTime)
+        // Use itemId hash as notification ID to ensure uniqueness
+        val notificationId = itemId.hashCode()
+        NotificationHelper.showNotification(context, title, location, startTime, notificationId)
         
         // Trigger vibration if enabled
         if (vibrationEnabled) {

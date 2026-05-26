@@ -55,6 +55,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -68,6 +69,7 @@ import vhdt.wiis.model.SyncState
 import vhdt.wiis.data.remote.WebViewLoginScreen
 import vhdt.wiis.model.SchoolPlugin
 import androidx.compose.ui.platform.LocalContext
+import coil.compose.AsyncImage
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -77,6 +79,7 @@ fun DataScreen(
 ) {
     var showLoginWebView by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
+    var autoSynced by remember { mutableStateOf(false) }
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -86,6 +89,14 @@ fun DataScreen(
     val filteredPlugins = remember(searchQuery, viewModel.plugins) {
         viewModel.plugins.filter {
             it.schoolName.contains(searchQuery, ignoreCase = true)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        // Auto sync on app startup if JWT token exists
+        if (!autoSynced && viewModel.getJwtToken() != null) {
+            autoSynced = true
+            viewModel.syncSchedule()
         }
     }
 
@@ -183,7 +194,7 @@ fun DataScreen(
                 Text(
                     text = "Không tìm thấy plugin",
                     fontSize = 12.sp,
-                    color = Color(0xFF94A3B8),
+                    color = Color(0xFF7F9FC9),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 16.dp),
@@ -196,7 +207,8 @@ fun DataScreen(
                     name = plugin.schoolName,
                     location = plugin.loginUrl,
                     status = "Đang dùng",
-                    statusColor = Color(0xFF22C55E)
+                    statusColor = Color(0xFF0DAD00),
+                    logoUrl = plugin.logoUrl
                 )
                 Spacer(modifier = Modifier.height(12.dp))
             }
@@ -220,14 +232,14 @@ fun DataScreen(
                 )
             ) {
                 Icon(
-                    painter = painterResource(id = R.drawable.arrow_forward_ios_24px),
+                    painter = painterResource(id = R.drawable.extension_24px),
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
-                    tint = Color(0xFF1856BB)
+                    tint = Color(0xFF1856BB),
                 )
                 Spacer(modifier = Modifier.size(8.dp))
                 Text(
-                    text = "Import Plugin JSON",
+                    text = "Thêm plugin trường của bạn",
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 14.sp
                 )
@@ -299,12 +311,12 @@ private fun SyncButtonSection(
             modifier = Modifier
                 .size(170.dp)
                 .clip(CircleShape)
-                .background(Color(0xFF1A87A3).copy(alpha = haloAlpha)),
+                .background(Color(0xFF0074FF).copy(alpha = haloAlpha)),
             contentAlignment = Alignment.Center
         ) {
             Surface(
                 shape = CircleShape,
-                color = Color(0xFF462BD7),
+                color = Color(0xFF163AB4),
                 modifier = Modifier
                     .size(150.dp)
                     .graphicsLayer {
@@ -332,7 +344,7 @@ private fun SyncButtonSection(
                         contentDescription = null,
                         tint = Color.White,
                         modifier = Modifier
-                            .size(48.dp)
+                            .size(68.dp)
                             .graphicsLayer { rotationZ = rotation }
                     )
                 }
@@ -362,7 +374,7 @@ private fun SyncButtonSection(
 
             is SyncState.Error -> {
                 Text(
-                    text = "Đồng bộ thất bại: ${state.message}",
+                    text = "Vui lòng kiểm tra mạng hoặc đăng nhập lại",
                     fontSize = 16.sp,
                     color = Color(0xFFEF4444),
                     fontWeight = FontWeight.SemiBold
@@ -496,12 +508,13 @@ private fun PluginCard(
     name: String,
     location: String,
     status: String,
-    statusColor: Color
+    statusColor: Color,
+    logoUrl: String? = null
 ) {
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = Color(0x00FFFFFF)
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
@@ -517,17 +530,32 @@ private fun PluginCard(
             // Icon
             Surface(
                 shape = RoundedCornerShape(8.dp),
-                color = Color(0xFF5B7FDF),
+                color = Color(0xFFFFFFFF),
+                shadowElevation = 2.dp,
                 modifier = Modifier.size(40.dp)
             ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_launcher_foreground),
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(8.dp)
-                )
+                if (logoUrl != null) {
+                    AsyncImage(
+                        model = logoUrl,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(4.dp),
+                        contentScale = ContentScale.Fit,
+                        error = painterResource(id = R.drawable.ic_launcher_foreground),
+                        placeholder = painterResource(id = R.drawable.ic_launcher_foreground)
+                    )
+                } else {
+                    // Fallback icon mặc định
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(8.dp)
+                    )
+                }
             }
 
             // Info

@@ -15,7 +15,8 @@ data class SchoolPlugin(
     val tableScheduleSelector: String,
     val jsonMapping: JsonMapping,
     val responseBodyKey: String? = null,   // key bọc ngoài, ví dụ "body"
-    val timeFormat: String = "HH:mm"       // "HH:mm" hoặc "tiet" (số tiết)
+    val timeFormat: String = "HH:mm" ,      // "HH:mm" hoặc "tiet" (số tiết)
+    val logoUrl: String? = null
 )
 
 @Serializable

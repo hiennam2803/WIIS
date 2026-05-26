@@ -73,6 +73,10 @@ import java.time.YearMonth
 @Composable
 fun CalendarScreen(viewModel: CalendarVM = viewModel()) {
 
+    LaunchedEffect(Unit) {
+        viewModel.refreshTasks()
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -204,8 +208,8 @@ private fun MonthCalendarGrid(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0x00FFFFFF)),
+//        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
         border = BorderStroke(1.dp, Color(0xFFE2E8F0))
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
