@@ -49,9 +49,9 @@ object AlarmScheduler {
             )
             Log.d(TAG, "Alarm scheduled for item: ${item.id} at $triggerTime")
         } catch (e: SecurityException) {
-            Log.e(TAG, "Lỗi bảo mật do thiếu quyền chính xác: ${item.id}", e)
+            Log.e(TAG, "Security exception scheduling alarm: ${item.id}", e)
         } catch (e: Exception) {
-            Log.e(TAG, "Lỗi trời ơi đất hỡi gì đó khác: ${item.id}", e)
+            Log.e(TAG, "Error scheduling alarm: ${item.id}", e)
         }
     }
     

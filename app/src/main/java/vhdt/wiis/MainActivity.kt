@@ -18,12 +18,12 @@ import vhdt.wiis.model.ScheduleItem
 import vhdt.wiis.model.ScheduleType
 import vhdt.wiis.scheduler.AlarmScheduler
 import vhdt.wiis.scheduler.NotificationHelper
-import vhdt.wiis.model.SchoolPlugin
 
 class MainActivity : ComponentActivity() {
 	
 	private val notificationPermissionLauncher = registerForActivityResult(
 		ActivityResultContracts.RequestPermission()
+
 	) { isGranted ->
 		if (isGranted) {
 			Log.d("MainActivity", "Notification permission granted")
@@ -31,7 +31,8 @@ class MainActivity : ComponentActivity() {
 			Log.d("MainActivity", "Notification permission denied")
 		}
 	}
-	
+
+
 	@RequiresApi(Build.VERSION_CODES.O)
 	override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
@@ -48,25 +49,22 @@ class MainActivity : ComponentActivity() {
 			) {
 				notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
 			}
+//			val testItem = ScheduleItem(
+//				id = "test_123",
+//				title = "Test báo thức chiến thần",
+//				location = "Phòng gym",
+//				startTime = System.currentTimeMillis() + (30 * 1000L),
+//				note = "Húc tạ thôi anh em ơi",
+//				endTime = System.currentTimeMillis() + (60 * 60 * 1000L),
+//				type = ScheduleType.PERSONAL,
+//				classCode = "CHIENTHAN101",
+//				fromPeriod = 1,
+//				toPeriod = 3,
+//				address = "Địa chỉ phòng gym"
+//			)
+//
+//			AlarmScheduler.scheduleAlarm(this, testItem, 0)
 		}
-
-		// Sửa lại chỗ này, xóa hết sạch chữ TODO() đi nha mày
-		val testItem = ScheduleItem(
-			id = "test_123",
-			title = "Test báo thức chiến thần",
-			location = "Phòng gym",
-			startTime = System.currentTimeMillis() + (30 * 1000L), // Báo thức sau 30 giây
-			note = "Húc tạ thôi anh em ơi", // Giả lập chuỗi rỗng hoặc chữ gì cũng được
-			endTime = System.currentTimeMillis() + (60 * 60 * 1000L), // Giả lập thêm 1 tiếng
-			type = ScheduleType.PERSONAL, // Loại cá nhân cho dễ test
-			classCode = "CHIENTHAN101",
-			fromPeriod = 1,
-			toPeriod = 3,
-			address = "Địa chỉ phòng gym"
-		)
-
-		// Gọi hàm đặt báo thức ngon lành cành đào, không sợ bị crash nữa
-		AlarmScheduler.scheduleAlarm(this, testItem, 0)
 
 		setContent {
 			MaterialTheme {

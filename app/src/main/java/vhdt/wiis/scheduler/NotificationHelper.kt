@@ -38,6 +38,7 @@ object NotificationHelper {
         context: Context,
         title: String,
         location: String,
+        address: String,
         startTime: Long,
         notificationId: Int = System.currentTimeMillis().toInt()
     ) {
@@ -46,10 +47,10 @@ object NotificationHelper {
             val timeString = timeFormat.format(Date(startTime))
             
             val notificationTitle = "⏰ $title"
-            val notificationBody = "Bắt đầu lúc $timeString tại $location"
+            val notificationBody = "Bắt đầu lúc $timeString tại $location - $address"
             
             val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-                .setSmallIcon(R.drawable.ic_launcher_foreground)
+                .setSmallIcon(R.drawable.wiis_logo)
                 .setContentTitle(notificationTitle)
                 .setContentText(notificationBody)
                 .setStyle(

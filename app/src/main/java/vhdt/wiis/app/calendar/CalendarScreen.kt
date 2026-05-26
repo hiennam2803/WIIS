@@ -217,7 +217,9 @@ private fun MonthCalendarGrid(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 8.dp),
+                    .padding(bottom = 8.dp)
+                    .background(Color(0x83011A9E), shape = RoundedCornerShape(12.dp))
+                    .border(1.dp, Color(0xBE000000).copy(alpha = 0.3f), shape = RoundedCornerShape(12.dp)),
                 horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 dayLabels.forEach { day ->
@@ -230,8 +232,8 @@ private fun MonthCalendarGrid(
                         Text(
                             day,
                             fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF94A3B8)
+                            fontWeight = FontWeight.ExtraBold,
+                              color = Color(0xFFFFFFFF)
                         )
                     }
                 }

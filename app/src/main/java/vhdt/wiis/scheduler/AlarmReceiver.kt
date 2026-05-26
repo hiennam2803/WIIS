@@ -21,6 +21,7 @@ class AlarmReceiver : BroadcastReceiver() {
         private const val EXTRA_ITEM_ID = "extra_item_id"
         private const val EXTRA_TITLE = "extra_title"
         private const val EXTRA_LOCATION = "extra_location"
+        private const val EXTRA_ADDRESS = "extra_address"
         private const val EXTRA_START_TIME = "extra_start_time"
     }
     
@@ -30,6 +31,7 @@ class AlarmReceiver : BroadcastReceiver() {
         val itemId = intent.getStringExtra(EXTRA_ITEM_ID) ?: return
         val title = intent.getStringExtra(EXTRA_TITLE) ?: return
         val location = intent.getStringExtra(EXTRA_LOCATION) ?: ""
+        val address = intent.getStringExtra(EXTRA_ADDRESS) ?: ""
         val startTime = intent.getLongExtra(EXTRA_START_TIME, 0L)
         
         Log.d(TAG, "AlarmReceiver triggered for: $title")
@@ -58,7 +60,7 @@ class AlarmReceiver : BroadcastReceiver() {
         
         // Use itemId hash as notification ID to ensure uniqueness
         val notificationId = itemId.hashCode()
-        NotificationHelper.showNotification(context, title, location, startTime, notificationId)
+        NotificationHelper.showNotification(context, title, location, address, startTime, notificationId)
         
         // Trigger vibration if enabled
         if (vibrationEnabled) {
