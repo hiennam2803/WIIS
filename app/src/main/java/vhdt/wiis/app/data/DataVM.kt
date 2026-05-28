@@ -1,11 +1,12 @@
 package vhdt.wiis.app.data
 
+import android.Manifest
 import android.app.Application
 import android.content.Context
-import android.net.Uri
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.compose.runtime.mutableStateOf
@@ -18,6 +19,7 @@ import vhdt.wiis.data.repository.ScheduleRepository
 import vhdt.wiis.model.SyncState
 import vhdt.wiis.model.SchoolPlugin
 import vhdt.wiis.scheduler.AlarmScheduler
+import android.net.Uri
 
 class DataVM(application: Application) : AndroidViewModel(application) {
 
@@ -40,6 +42,13 @@ class DataVM(application: Application) : AndroidViewModel(application) {
 
     val syncWeeks = mutableStateOf(
         prefs.getInt("syncWeeks", 4)
+    )
+
+    val syncSchoolEnabled = mutableStateOf(
+        prefs.getBoolean("syncSchoolEnabled", true)
+    )
+    val syncDeviceCalendarEnabled = mutableStateOf(
+        prefs.getBoolean("syncDeviceCalendarEnabled", false)
     )
 
     val syncState = mutableStateOf<SyncState>(SyncState.Idle)
@@ -74,39 +83,57 @@ class DataVM(application: Application) : AndroidViewModel(application) {
         }
     }
     
+    fun toggleSyncSchool(enabled: Boolean) {
+        syncSchoolEnabled.value = enabled
+        prefs.edit().putBoolean("syncSchoolEnabled", enabled).apply()
+    }
+
+    fun toggleSyncDeviceCalendar(enabled: Boolean) {
+        syncDeviceCalendarEnabled.value = enabled
+        prefs.edit().putBoolean("syncDeviceCalendarEnabled", enabled).apply()
+    }
+
     @RequiresApi(Build.VERSION_CODES.O)
     fun syncSchedule() {
+        if (!syncSchoolEnabled.value && !syncDeviceCalendarEnabled.value) {
+            syncState.value = SyncState.Error("Vui lòng bật ít nhất 1 nguồn đồng bộ")
+            return
+        }
+
         syncState.value = SyncState.Loading
         
         viewModelScope.launch {
             val activePlugin = repository.getInstalledPlugins().firstOrNull()
-            
-            if (activePlugin == null) {
-                syncState.value = SyncState.NoPlugin
-                return@launch
-            }
-            
-            val result = repository.fetchSchedule(activePlugin, syncWeeks.value)
-            syncState.value = result
 
-            if (result is SyncState.Error && result.message == "AUTH_REQUIRED") {
-                // JWT expired — token already cleared in repository
-                // LaunchedEffect in DataScreen will catch this and open WebView
-                return@launch
+            // Sync school schedule
+            if (syncSchoolEnabled.value) {
+                if (activePlugin == null) {
+                    syncState.value = SyncState.NoPlugin
+                    return@launch
+                }
+                val result = repository.fetchSchedule(activePlugin, syncWeeks.value)
+                if (result is SyncState.Error) {
+                    syncState.value = result
+                    return@launch
+                }
+                if (result is SyncState.Success) {
+                    repository.saveScheduleItems(result.items)
+                    eventCount.value = result.items.size
+                    AlarmScheduler.scheduleAllAlarms(
+                        context, result.items,
+                        prefs.getInt("notifyMinutesBefore", 60)
+                    )
+                    alarmCount.value = result.items
+                        .count { it.startTime > System.currentTimeMillis() }
+                    AlarmScheduler.scheduleDailySummaryAlarm(context)
+                }
             }
 
-            if (result is SyncState.Success) {
-                repository.saveScheduleItems(result.items)
-                eventCount.value = result.items.size
-                AlarmScheduler.scheduleAllAlarms(
-                    context,
-                    result.items,
-                    prefs.getInt("notifyMinutesBefore", 60)
-                )
-                AlarmScheduler.scheduleDailySummaryAlarm(context)
-                alarmCount.value = result.items
-                    .count { it.startTime > System.currentTimeMillis() }
-            }
+            // Device calendar: only read, don't write
+            // Reading device calendar events is handled by CalendarVM.loadDeviceCalendarEvents()
+            // This sync only fetches and saves school schedule and alarms
+
+            syncState.value = SyncState.Success(repository.getSavedScheduleItems())
         }
     }
 

@@ -1,6 +1,8 @@
 package vhdt.wiis.app.data
 
+import android.Manifest
 import android.os.Build
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
@@ -42,6 +44,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -79,11 +83,16 @@ fun DataScreen(
 ) {
     var showLoginWebView by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
-    var autoSynced by remember { mutableStateOf(false) }
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri -> uri?.let { viewModel.importPluginJson(it) } }
+    
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        Log.d("DataScreen", "Calendar permission result: $isGranted")
+    }
 
     // Memoize filteredPlugins để tránh recalculate mỗi frame
     val filteredPlugins = remember(searchQuery, viewModel.plugins) {
@@ -92,17 +101,11 @@ fun DataScreen(
         }
     }
 
-    LaunchedEffect(Unit) {
-        // Auto sync on app startup if JWT token exists
-        if (!autoSynced && viewModel.getJwtToken() != null) {
-            autoSynced = true
-            viewModel.syncSchedule()
-        }
-    }
-
     LaunchedEffect(viewModel.syncState.value) {
         val state = viewModel.syncState.value
-        if (state is SyncState.Error && state.message == "AUTH_REQUIRED") {
+        if (state is SyncState.Error &&
+            state.message == "AUTH_REQUIRED" &&
+            viewModel.syncSchoolEnabled.value) {
             showLoginWebView = true
         }
     }
@@ -123,7 +126,11 @@ fun DataScreen(
             SyncButtonSection(
                 viewModel = viewModel,
                 onSyncClicked = {
-                    if (viewModel.getJwtToken() == null) {
+                    Log.d("DataScreen", "Sync button clicked")
+                    // Request calendar permission
+                    permissionLauncher.launch(Manifest.permission.READ_CALENDAR)
+
+                    if (viewModel.syncSchoolEnabled.value && viewModel.getJwtToken() == null) {
                         showLoginWebView = true
                     } else {
                         viewModel.syncSchedule()
@@ -133,7 +140,19 @@ fun DataScreen(
         }
 
         item {
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        item {
+            SyncSwitchesSection(viewModel)
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(16.dp))
         }
 
         item {
@@ -356,7 +375,7 @@ private fun SyncButtonSection(
         when (val state = viewModel.syncState.value) {
             is SyncState.Loading -> {
                 Text(
-                    text = "Đang đồng bộ...",
+                    text = "Đang đồng bộ trường & máy...",
                     fontSize = 16.sp,
                     color = Color(0xFF1856BB),
                     fontWeight = FontWeight.SemiBold
@@ -374,13 +393,115 @@ private fun SyncButtonSection(
 
             is SyncState.Error -> {
                 Text(
-                    text = "Vui lòng kiểm tra mạng hoặc đăng nhập lại",
+                    text = "Kiểm tra mạng hoặc bật nguôn đồng bộ",
                     fontSize = 16.sp,
                     color = Color(0xFFEF4444),
                     fontWeight = FontWeight.SemiBold
                 )
             }
             else -> {}
+        }
+    }
+}
+
+@Composable
+private fun SyncSwitchesSection(viewModel: DataVM) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0x00FFFFFF)),
+        border = BorderStroke(1.dp, Color(0xFF0A53B4)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "NGUỒN ĐỒNG BỘ",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF05101A),
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+
+            // Switch 1 — Lịch trường
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = Color(0xFFE8F0FE),
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                                contentDescription = null,
+                                tint = Color(0xFF1856BB),
+                                modifier = Modifier.size(20.dp).padding(2.dp)
+                            )
+                        }
+                    }
+                    Column {
+                        Text("Lịch trường", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E293B))
+                        Text("Lấy từ lịch trường của bạn", fontSize = 11.sp, color = Color(0xFF94A3B8))
+                    }
+                }
+                Switch(
+                    checked = viewModel.syncSchoolEnabled.value,
+                    onCheckedChange = { viewModel.toggleSyncSchool(it) },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = Color(0xFF1856BB)
+                    )
+                )
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+            Box(modifier = Modifier.fillMaxWidth().height(0.5.dp).background(Color(0xFFE2E8F0)))
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Switch 2 — Lịch máy
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = Color(0xFFE6F9F0),
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                                contentDescription = null,
+                                tint = Color(0xFF1D9E75),
+                                modifier = Modifier.size(20.dp).padding(2.dp)
+                            )
+                        }
+                    }
+                    Column {
+                        Text("Lịch điện thoại", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E293B))
+                        Text("Lấy từ lịch điện thoại của bạn", fontSize = 11.sp, color = Color(0xFF94A3B8))
+                    }
+                }
+                Switch(
+                    checked = viewModel.syncDeviceCalendarEnabled.value,
+                    onCheckedChange = { viewModel.toggleSyncDeviceCalendar(it) },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = Color(0xFF1D9E75)
+                    )
+                )
+            }
         }
     }
 }
