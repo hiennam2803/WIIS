@@ -3,12 +3,10 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET"/>
-    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
-    <uses-permission android:name="android.permission.VIBRATE"/>
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-permission android:name="android.permission.SET_ALARM" />
+    <!-- POST_NOTIFICATIONS removed: app no longer posts in-app notifications -->
     <uses-permission android:name="android.permission.READ_CALENDAR"/>
-    <uses-permission android:name="android.permission.WRITE_CALENDAR"/>
+    <uses-permission android:name="com.android.alarm.permission.SET_ALARM"/>
 
     <application
         android:allowBackup="true"
@@ -31,24 +29,18 @@
             </intent-filter>
         </activity>
 
-        <!-- Alarm receiver -->
-        <receiver
-            android:name=".scheduler.AlarmReceiver"
-            android:exported="false"/>
-        
-        <!-- Daily summary receiver -->
-        <receiver
-            android:name=".scheduler.DailySummaryReceiver"
-            android:exported="false"/>
-        
-        <!-- Boot receiver -->
-        <receiver
-            android:name=".scheduler.BootReceiver"
+        <!-- Receivers removed: using system AlarmClock instead of AlarmManager-based receivers -->
+
+        <!-- Whitelist the app from power management -->
+        <activity-alias
+            android:name=".Settings"
+            android:targetActivity=".MainActivity"
             android:exported="true">
             <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.APPLICATION_PREFERENCES" />
+                <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
-        </receiver>
+        </activity-alias>
 
     </application>
 

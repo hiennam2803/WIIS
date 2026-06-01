@@ -5,11 +5,18 @@ import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.compose.runtime.mutableStateOf
 import vhdt.wiis.model.AppSetting
+import vhdt.wiis.data.repository.ScheduleRepository
+import vhdt.wiis.data.remote.ScheduleApiClient
+import vhdt.wiis.data.local.PluginLoader
 
 class SettingVM(application: Application) : AndroidViewModel(application) {
     
+    private val appContext = getApplication<Application>().applicationContext
     private val prefs = getApplication<Application>()
         .getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+
+    // repository to clear persisted schedule data
+    private val repository = ScheduleRepository(appContext, ScheduleApiClient, PluginLoader)
     
     val settings = mutableStateOf(AppSetting())
     
@@ -24,21 +31,6 @@ class SettingVM(application: Application) : AndroidViewModel(application) {
             quietHoursEnd = prefs.getString("quietHoursEnd", "07:00") ?: "07:00",
             vibrationEnabled = prefs.getBoolean("vibrationEnabled", false)
         )
-    }
-    
-    fun toggleAlarm(enabled: Boolean) {
-        settings.value = settings.value.copy(alarmEnabled = enabled)
-        prefs.edit().putBoolean("alarmEnabled", enabled).apply()
-    }
-    
-    fun setNotifyMinutesBefore(minutes: Int) {
-        settings.value = settings.value.copy(notifyMinutesBefore = minutes)
-        prefs.edit().putInt("notifyMinutesBefore", minutes).apply()
-    }
-    
-    fun setSnoozeMinutes(minutes: Int) {
-        settings.value = settings.value.copy(snoozeMinutes = minutes)
-        prefs.edit().putInt("snoozeMinutes", minutes).apply()
     }
     
     fun toggleNotification(enabled: Boolean) {
@@ -60,14 +52,30 @@ class SettingVM(application: Application) : AndroidViewModel(application) {
         settings.value = settings.value.copy(quietHoursEnd = time)
         prefs.edit().putString("quietHoursEnd", time).apply()
     }
-    
-    fun toggleVibration(enabled: Boolean) {
-        settings.value = settings.value.copy(vibrationEnabled = enabled)
-        prefs.edit().putBoolean("vibrationEnabled", enabled).apply()
-    }
-    
+
+    /**
+     * Delete all application data:
+     * - clear `app_settings` prefs
+     * - clear `event_settings` prefs
+     * - clear schedule repository storage (regular + encrypted prefs)
+     */
     fun deleteAllData() {
+        // clear app settings
         prefs.edit().clear().apply()
+
+        // clear event-specific settings
+        val eventPrefs = getApplication<Application>()
+            .getSharedPreferences("event_settings", Context.MODE_PRIVATE)
+        eventPrefs.edit().clear().apply()
+
+        // clear repository persisted data
+        try {
+            repository.clearAllData()
+        } catch (e: Exception) {
+            // swallow — best-effort cleanup
+        }
+
+        // reset in-memory state
         settings.value = AppSetting()
     }
 }

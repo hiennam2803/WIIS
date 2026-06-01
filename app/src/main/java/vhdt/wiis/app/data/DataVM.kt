@@ -15,10 +15,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import vhdt.wiis.data.local.PluginLoader
 import vhdt.wiis.data.remote.ScheduleApiClient
+import vhdt.wiis.data.remote.DeviceCalendarClient
 import vhdt.wiis.data.repository.ScheduleRepository
 import vhdt.wiis.model.SyncState
 import vhdt.wiis.model.SchoolPlugin
-import vhdt.wiis.scheduler.AlarmScheduler
+// AlarmScheduler removed; using system Clock app via AlarmClock intents instead
 import android.net.Uri
 
 class DataVM(application: Application) : AndroidViewModel(application) {
@@ -38,7 +39,7 @@ class DataVM(application: Application) : AndroidViewModel(application) {
 
     val pluginCount = mutableStateOf(0)
     val eventCount = mutableStateOf(0)
-    val alarmCount = mutableStateOf(0)
+    val deviceCount = mutableStateOf(0)
 
     val syncWeeks = mutableStateOf(
         prefs.getInt("syncWeeks", 4)
@@ -58,27 +59,39 @@ class DataVM(application: Application) : AndroidViewModel(application) {
             val installedPlugins = repository.getInstalledPlugins()
             val savedItems = repository.getSavedScheduleItems()
             
-            val futureAlarmsCount = withContext(Dispatchers.Default) {
-                savedItems.count { it.startTime > System.currentTimeMillis() }
+            val device = withContext(Dispatchers.Default) {
+                // Count device calendar events in a reasonable window (1 month back to 2 months forward)
+                try {
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                        val startMs = java.time.LocalDate.now().minusMonths(1)
+                            .atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+                        val endMs = java.time.LocalDate.now().plusMonths(2)
+                            .atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+
+                        val calendars = DeviceCalendarClient.getAvailableCalendars(context)
+                        var count = 0
+                        for (cal in calendars) {
+                            try {
+                                val items = DeviceCalendarClient.importFromDeviceCalendar(context, cal.id, startMs, endMs)
+                                count += items.size
+                            } catch (_: Exception) { }
+                        }
+                        count
+                    } else {
+                        0
+                    }
+                } catch (e: Exception) {
+                    0
+                }
             }
             
             withContext(Dispatchers.Main) {
                 _plugins.value = installedPlugins
                 pluginCount.value = installedPlugins.size
                 eventCount.value = savedItems.size
-                alarmCount.value = futureAlarmsCount
+                deviceCount.value = device
                 
-                // Schedule daily summary alarm on app startup
-                AlarmScheduler.scheduleDailySummaryAlarm(context)
-                
-                // Reschedule individual alarms for saved items
-                if (savedItems.isNotEmpty()) {
-                    AlarmScheduler.scheduleAllAlarms(
-                        context,
-                        savedItems,
-                        prefs.getInt("notifyMinutesBefore", 60)
-                    )
-                }
+                // No longer scheduling alarms via AlarmManager; alarms are set via system Clock app
             }
         }
     }
@@ -119,13 +132,11 @@ class DataVM(application: Application) : AndroidViewModel(application) {
                 if (result is SyncState.Success) {
                     repository.saveScheduleItems(result.items)
                     eventCount.value = result.items.size
-                    AlarmScheduler.scheduleAllAlarms(
-                        context, result.items,
-                        prefs.getInt("notifyMinutesBefore", 60)
-                    )
-                    alarmCount.value = result.items
-                        .count { it.startTime > System.currentTimeMillis() }
-                    AlarmScheduler.scheduleDailySummaryAlarm(context)
+                    // Do not schedule alarms here; user sets alarms via Clock app when saving
+                    if (result is SyncState.Success) {
+                        repository.saveScheduleItems(result.items)
+                        eventCount.value = result.items.size
+                    }
                 }
             }
 
@@ -179,5 +190,39 @@ class DataVM(application: Application) : AndroidViewModel(application) {
     fun setSyncWeeks(weeks: Int) {
         syncWeeks.value = weeks
         prefs.edit().putInt("syncWeeks", weeks).apply()
+    }
+
+    /**
+     * Refresh the cached device calendar event count. Call this after READ_CALENDAR permission is granted.
+     */
+    fun refreshDeviceCount(context: Context) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val count = try {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    val startMs = java.time.LocalDate.now().minusMonths(1)
+                        .atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+                    val endMs = java.time.LocalDate.now().plusMonths(2)
+                        .atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+
+                    val calendars = DeviceCalendarClient.getAvailableCalendars(context)
+                    var c = 0
+                    for (cal in calendars) {
+                        try {
+                            val items = DeviceCalendarClient.importFromDeviceCalendar(context, cal.id, startMs, endMs)
+                            c += items.size
+                        } catch (_: Exception) { }
+                    }
+                    c
+                } else {
+                    0
+                }
+            } catch (e: Exception) {
+                0
+            }
+
+            withContext(Dispatchers.Main) {
+                deviceCount.value = count
+            }
+        }
     }
 }

@@ -13,6 +13,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.collect
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
@@ -21,6 +24,9 @@ import vhdt.wiis.data.local.PluginLoader
 import vhdt.wiis.data.remote.ScheduleApiClient
 import vhdt.wiis.data.repository.ScheduleRepository
 import vhdt.wiis.model.ScheduleItem
+import android.content.Intent
+import android.provider.AlarmClock
+import android.widget.Toast
 
 @RequiresApi(Build.VERSION_CODES.O)
 class CalendarVM(application: Application) : AndroidViewModel(application) {
@@ -32,11 +38,17 @@ class CalendarVM(application: Application) : AndroidViewModel(application) {
     val today = LocalDate.now()
     val selectedDate = mutableStateOf(today)
     val displayMonth = mutableStateOf(YearMonth.now())
+    
+    // Track the last selected date for debugging state issues
+    private var lastLoggedSelectedDate: LocalDate? = null
     val expandedItems = mutableStateOf(setOf<Int>())
     val expandedDeviceItems = mutableStateOf(setOf<Int>())
     
     val tasks = mutableStateOf<List<ScheduleItem>>(emptyList())
     val deviceEvents = mutableStateOf<List<DeviceScheduleItem>>(emptyList())
+    val eventNotificationSettings = mutableStateOf<Map<String, EventNotificationSettings>>(
+        loadEventSettings()
+    )
     // Cache: Map<LocalDate, List<ScheduleItem>> để tránh tính toán lặp lại
     private var tasksByDateCache = mutableMapOf<LocalDate, List<ScheduleItem>>()
     private var cachedTasksList: List<ScheduleItem> = emptyList()
@@ -51,6 +63,99 @@ class CalendarVM(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             repository.getSavedScheduleItems()
         }
+    }
+
+    private fun loadEventSettings(): Map<String, EventNotificationSettings> {
+        return try {
+            val json = Json { ignoreUnknownKeys = true }
+            val str = context.getSharedPreferences("event_settings", Context.MODE_PRIVATE)
+                .getString("settings", null) ?: return emptyMap()
+            json.decodeFromString(str)
+        } catch (e: Exception) { 
+            emptyMap() 
+        }
+    }
+
+    fun saveEventSettings(eventId: String, settings: EventNotificationSettings, deviceEventTitle: String? = null, deviceEventStartTime: Long? = null) {
+        val current = eventNotificationSettings.value.toMutableMap()
+        current[eventId] = settings
+        eventNotificationSettings.value = current
+        // Save to prefs
+        val json = Json { ignoreUnknownKeys = true }
+        context.getSharedPreferences("event_settings", Context.MODE_PRIVATE)
+            .edit().putString("settings", json.encodeToString(current)).apply()
+        // Schedule or cancel using device Clock app (AlarmClock.ACTION_SET_ALARM)
+        if (settings.alarmEnabled) {
+            // Determine startTime and title
+            var title: String? = deviceEventTitle
+            var startMs: Long? = deviceEventStartTime
+
+            val item = tasks.value.find { it.id == eventId }
+            if (item != null) {
+                title = item.title
+                startMs = item.startTime
+            }
+
+            // If we still don't have startMs, try deviceEvents cache
+            if (startMs == null) {
+                val deviceItem = deviceEvents.value.find { it.id == eventId }
+                if (deviceItem != null) {
+                    title = deviceItem.title
+                    startMs = deviceItem.startTime
+                }
+            }
+
+            if (startMs != null) {
+                try {
+                    val triggerMs = startMs - settings.minutesBefore * 60 * 1000L
+                    val zdt = Instant.ofEpochMilli(triggerMs).atZone(ZoneId.systemDefault())
+                    val hour = zdt.hour
+                    val minute = zdt.minute
+
+                    val alarmIntent = Intent(AlarmClock.ACTION_SET_ALARM).apply {
+                        putExtra(AlarmClock.EXTRA_MESSAGE, title ?: "Alarm")
+                        putExtra(AlarmClock.EXTRA_HOUR, hour)
+                        putExtra(AlarmClock.EXTRA_MINUTES, minute)
+                        putExtra(AlarmClock.EXTRA_SKIP_UI, true)
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(alarmIntent)
+                    Log.d("CalendarVM", "Set system alarm for $eventId at $hour:$minute (message=${title})")
+                } catch (e: Exception) {
+                    Log.e("CalendarVM", "Error setting system alarm for $eventId", e)
+                }
+            } else {
+                Log.w("CalendarVM", "No start time found for event $eventId; cannot set alarm")
+            }
+        } else {
+            // Hướng dẫn user tự xóa trong app Đồng Hồ
+            try {
+                // Determine title for user message
+                var title: String? = deviceEventTitle
+                val item = tasks.value.find { it.id == eventId }
+                if (item != null) title = item.title
+                if (title == null) {
+                    val deviceItem = deviceEvents.value.find { it.id == eventId }
+                    if (deviceItem != null) title = deviceItem.title
+                }
+
+                Toast.makeText(
+                    context,
+                    "Vui lòng xóa báo thức '${title ?: "Alarm"}' trong app Đồng Hồ",
+                    Toast.LENGTH_LONG
+                ).show()
+                val intent = Intent(AlarmClock.ACTION_SHOW_ALARMS).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(intent)
+            } catch (e: Exception) {
+                Log.e("CalendarVM", "Error opening clock app", e)
+            }
+        }
+    }
+
+    fun getEventSettings(eventId: String): EventNotificationSettings {
+        return eventNotificationSettings.value[eventId] ?: EventNotificationSettings()
     }
 
     private suspend fun loadScheduleItems() {
@@ -91,7 +196,19 @@ class CalendarVM(application: Application) : AndroidViewModel(application) {
     }
 
     fun selectDate(date: LocalDate) {
+        // Guard against null or invalid dates
+        if (date.year < 2000 || date.year > 2100) {
+            Log.w("CalendarVM", "selectDate called with invalid year: ${date.year}")
+            return
+        }
+        
         selectedDate.value = date
+        
+        // Log state change with context
+        if (lastLoggedSelectedDate != date) {
+            Log.d("CalendarVM", "✓ selectedDate UPDATED to: ${date.toStandardFormat()} (${date.dayOfWeek}, month=${date.monthValue}, day=${date.dayOfMonth})")
+            lastLoggedSelectedDate = date
+        }
     }
 
     fun goToPreviousMonth() {
@@ -126,6 +243,36 @@ class CalendarVM(application: Application) : AndroidViewModel(application) {
     fun getTasksForDate(date: LocalDate): List<ScheduleItem> {
         updateTasksCache()
         return tasksByDateCache[date] ?: emptyList()
+    }
+
+    fun hasAlarmOnDate(date: LocalDate): Boolean {
+        return eventNotificationSettings.value.any { (eventId, settings) ->
+            if (!settings.alarmEnabled) return@any false
+            
+            // Check school events first
+            val schoolItem = tasks.value.find { it.id == eventId }
+            if (schoolItem != null) {
+                val eventDate = Instant.ofEpochMilli(schoolItem.startTime)
+                    .atZone(ZoneId.systemDefault())
+                    .toLocalDate()
+                val matches = eventDate == date
+                Log.d("CalendarVM", "Alarm check (school): '${schoolItem.title}' at ${eventDate.toStandardFormat()} vs ${date.toStandardFormat()} -> $matches")
+                return@any matches
+            }
+            
+            // Check device events
+            val deviceItem = deviceEvents.value.find { it.id == eventId }
+            if (deviceItem != null) {
+                val eventDate = Instant.ofEpochMilli(deviceItem.startTime)
+                    .atZone(ZoneId.systemDefault())
+                    .toLocalDate()
+                val matches = eventDate == date
+                Log.d("CalendarVM", "Alarm check (device): '${deviceItem.title}' at ${eventDate.toStandardFormat()} vs ${date.toStandardFormat()} -> $matches")
+                return@any matches
+            }
+            
+            return@any false
+        }
     }
 
     fun loadDeviceCalendarEvents(context: Context) {
@@ -229,10 +376,10 @@ class CalendarVM(application: Application) : AndroidViewModel(application) {
                 .atZone(ZoneId.systemDefault())
                 .toLocalDate()
             val matches = eventDate == date
-            Log.d("CalendarVM", "Filter event: '${event.title}' at $eventDate vs $date -> $matches")
+            Log.d("CalendarVM", "Filter event: '${event.title}' at ${eventDate.toStandardFormat()} vs ${date.toStandardFormat()} -> $matches")
             matches
         }
-        Log.d("CalendarVM", "getDeviceEventsForDate($date) -> ${filtered.size} events from total ${deviceEvents.value.size}")
+        Log.d("CalendarVM", "getDeviceEventsForDate(${date.toStandardFormat()}) -> ${filtered.size} events from total ${deviceEvents.value.size}")
         return filtered
     }
 
@@ -281,6 +428,13 @@ class CalendarVM(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    @Serializable
+    data class EventNotificationSettings(
+        val notificationEnabled: Boolean = true,
+        val alarmEnabled: Boolean = true,
+        val minutesBefore: Int = 60
+    )
+
     data class DeviceScheduleItem(
         val id: String,
         val title: String,
@@ -289,4 +443,9 @@ class CalendarVM(application: Application) : AndroidViewModel(application) {
         val calendarName: String,
         val color: Int
     )
+}
+
+// Extension function for standard date formatting
+fun LocalDate.toStandardFormat(): String {
+    return this.toString()  // yyyy-MM-dd format (ISO 8601)
 }

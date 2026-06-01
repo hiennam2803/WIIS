@@ -88,10 +88,14 @@ fun DataScreen(
         contract = ActivityResultContracts.GetContent()
     ) { uri -> uri?.let { viewModel.importPluginJson(it) } }
     
+    val ctx = LocalContext.current
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         Log.d("DataScreen", "Calendar permission result: $isGranted")
+        if (isGranted) {
+            viewModel.refreshDeviceCount(ctx)
+        }
     }
 
     // Memoize filteredPlugins để tránh recalculate mỗi frame
@@ -438,7 +442,7 @@ private fun SyncSwitchesSection(viewModel: DataVM) {
                     ) {
                         Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                             Icon(
-                                painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                                painter = painterResource(id = R.drawable.school_24px),
                                 contentDescription = null,
                                 tint = Color(0xFF1856BB),
                                 modifier = Modifier.size(20.dp).padding(2.dp)
@@ -481,7 +485,7 @@ private fun SyncSwitchesSection(viewModel: DataVM) {
                     ) {
                         Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                             Icon(
-                                painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                                painter = painterResource(id = R.drawable.devices_24px),
                                 contentDescription = null,
                                 tint = Color(0xFF1D9E75),
                                 modifier = Modifier.size(20.dp).padding(2.dp)
@@ -574,13 +578,13 @@ private fun StatsHeader(viewModel: DataVM) {
             modifier = Modifier.weight(1f)
         )
         StatCard(
-            label = "Sự kiện",
+            label = "Sự kiện trường",
             value = viewModel.eventCount.value.toString(),
             modifier = Modifier.weight(1f)
         )
         StatCard(
-            label = "Báo thức",
-            value = viewModel.alarmCount.value.toString(),
+            label = "Sự kiện máy",
+            value = viewModel.deviceCount.value.toString(),
             modifier = Modifier.weight(1f)
         )
     }
