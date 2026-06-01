@@ -236,7 +236,7 @@ fun CalendarScreen(viewModel: CalendarVM = viewModel()) {
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "LỊCH TRÌNH",
+                text = "LỊCH HỌC",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF94A3B8),
@@ -296,14 +296,14 @@ fun CalendarScreen(viewModel: CalendarVM = viewModel()) {
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(end = 24.dp, bottom = 24.dp),
-
+            containerColor = Color(0xFF1856BB),
             contentColor = Color.White,
             shape = CircleShape
         ) {
             Icon(
                 painter = painterResource(id = R.drawable.add_24px),
                 contentDescription = "Thêm lịch",
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(30.dp)
             )
         }
 

@@ -488,7 +488,7 @@ private fun InfoDialog(
                     // Icon đại diện
                     Icon(
                         painter = painterResource(
-                            id = R.drawable.wiis_logo
+                            id = if (isWarning) R.drawable.exclamation_24px else R.drawable.hotel_class_24px
                         ),
                         contentDescription = null,
                         tint = Color.White,
