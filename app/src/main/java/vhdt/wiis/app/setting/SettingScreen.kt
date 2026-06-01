@@ -8,6 +8,8 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -47,6 +49,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -62,6 +65,8 @@ private val Primary        = Color(0xFF1856BB)
 private val PrimaryLight   = Color(0xFFE8F0FE)
 private val Purple         = Color(0xFF7C3AED)
 private val PurpleLight    = Color(0xFFEDE9FE)
+private val BlueFB         = Color(0xFF1877F2)
+private val BlueFBLight    = Color(0xFFE7F3FF)
 private val Danger         = Color(0xFFEF4444)
 private val DangerLight    = Color(0xFFFFECEC)
 private val CardBg         = Color(0xFFFFFFFF)
@@ -82,7 +87,12 @@ fun SettingScreen(
     viewModel: SettingVM = viewModel()
 ) {
     val ctx = LocalContext.current
+    val uriHandler = LocalUriHandler.current
     val settings = viewModel.settings.value
+
+    // State điều khiển ẩn hiện Dialog cho Điều khoản và Lưu ý
+    var showTermsDialog by remember { mutableStateOf(false) }
+    var showNotesDialog by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -105,20 +115,14 @@ fun SettingScreen(
                     .padding(horizontal = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-
                 Spacer(modifier = Modifier.width(12.dp))
 
                 Column {
                     Text(
                         text = "Cài đặt",
-                        fontSize = 22.sp,
+                        fontSize = 25.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = TextPrimary
-                    )
-                    Text(
-                        text = "Tuỳ chỉnh ứng dụng",
-                        fontSize = 12.sp,
-                        color = TextSecondary
                     )
                 }
             }
@@ -150,8 +154,6 @@ fun SettingScreen(
                         trackColor = Primary,
                         onChecked = { viewModel.toggleNotification(it) }
                     )
-
-                    HorizontalDivider(color = Divider, thickness = 1.dp)
 
                     // Giờ im lặng toggle
                     SettingToggleRow(
@@ -208,6 +210,59 @@ fun SettingScreen(
                 }
             }
 
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // ── Section: HỖ TRỢ & PHÁP LÝ ─────────────────────────────────────
+            SectionLabel("HỖ TRỢ & PHÁP LÝ")
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Card(
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = CardBg),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .shadow(3.dp, RoundedCornerShape(18.dp)),
+                elevation = CardDefaults.cardElevation(0.dp)
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+
+                    // Row Facebook Cá Nhân
+                    SettingClickableRow(
+                        iconRes = safeDrawable(ctx, "contact_support_24px"), // Đảm bảo có icon facebook trong drawable hoặc dùng tạm icon mặc định
+                        iconBg = BlueFBLight,
+                        iconTint = BlueFB,
+                        title = "Liên hệ Developer",
+                        subtitle = "Kết nối qua Facebook cá nhân",
+                        onClick = { uriHandler.openUri("https://www.facebook.com/hac.hack.14606") }
+                    )
+
+                    HorizontalDivider(color = Divider, thickness = 1.dp)
+
+                    // Row Điều khoản sử dụng
+                    SettingClickableRow(
+                        iconRes = safeDrawable(ctx, "hotel_class_24px"), // Đảm bảo có icon terms trong drawable hoặc dùng tạm icon mặc định
+                        iconBg = PrimaryLight,
+                        iconTint = Primary,
+                        title = "Điều khoản sử dụng",
+                        subtitle = "Quy định khi trải nghiệm ứng dụng",
+                        onClick = { showTermsDialog = true }
+                    )
+
+                    HorizontalDivider(color = Divider, thickness = 1.dp)
+
+                    // Row Điều cần lưu ý
+                    SettingClickableRow(
+                        iconRes = safeDrawable(ctx, "exclamation_24px"), // Đảm bảo có icon warning trong drawable hoặc dùng tạm icon mặc định
+                        iconBg = DangerLight,
+                        iconTint = Danger,
+                        title = "Điều cần lưu ý",
+                        subtitle = "Các khuyến cáo quan trọng cho người dùng",
+                        onClick = { showNotesDialog = true }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
 
             // ── Footer version ────────────────────────────────────────────────
             Text(
@@ -220,6 +275,26 @@ fun SettingScreen(
         }
     }
 
+    // ── POPUP DIALOGS ──────────────────────────────────────────────────────────
+    if (showTermsDialog) {
+        InfoDialog(
+            title = "Điều khoản sử dụng",
+            content = "1. Ứng dụng cung cấp các tính năng hỗ trợ trải nghiệm người dùng cá nhân.\n\n" +
+                    "2. Người dùng cam kết không sử dụng ứng dụng vào các mục đích vi phạm pháp luật hoặc can thiệp phá hoại hệ thống.\n\n" +
+                    "3. Chúng tôi có quyền cập nhật, thay đổi hoặc ngừng cung cấp một số tính năng mà không cần báo trước.",
+            onDismiss = { showTermsDialog = false }
+        )
+    }
+
+    if (showNotesDialog) {
+        InfoDialog(
+            title = "Điều cần lưu ý",
+            content = "• Hãy đảm bảo cấp đủ quyền thông báo để tính năng nhắc nhở hoạt động chính xác.\n\n" +
+                    "• Chế độ 'Giờ im lặng' sẽ chặn tạm thời các thông báo đẩy trong khung giờ bạn đã thiết lập.\n\n" +
+                    "• Giữ kết nối mạng ổn định để các tính năng đồng bộ dữ liệu hoạt động mượt mà nhất.",
+            onDismiss = { showNotesDialog = false }
+        )
+    }
 }
 
 // ── Reusable composables ───────────────────────────────────────────────────────
@@ -311,6 +386,179 @@ private fun SettingToggleRow(
 }
 
 @Composable
+private fun SettingClickableRow(
+    iconRes: Int,
+    iconBg: Color,
+    iconTint: Color,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.weight(1f)
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = iconBg,
+                modifier = Modifier.size(46.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        painter = painterResource(id = iconRes),
+                        contentDescription = null,
+                        tint = iconTint,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column {
+                Text(
+                    text = title,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = subtitle,
+                    fontSize = 12.sp,
+                    color = TextSecondary,
+                    lineHeight = 16.sp
+                )
+            }
+        }
+
+    }
+}
+
+@Composable
+private fun InfoDialog(
+    title: String,
+    content: String,
+    isWarning: Boolean = false, // true nếu là Điều cần lưu ý, false nếu là Điều khoản
+    onDismiss: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(containerColor = CardBg),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp)
+                .shadow(12.dp, RoundedCornerShape(28.dp)),
+            elevation = CardDefaults.cardElevation(0.dp)
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // ── Header Gradient với Icon đỉnh chóp ───────────────────────
+                val headerGradient = if (isWarning) {
+                    Brush.verticalGradient(listOf(Danger, Color(0xFFFCA5A5)))
+                } else {
+                    Brush.verticalGradient(listOf(Primary, Color(0xFF60A5FA)))
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(100.dp)
+                        .background(headerGradient),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // Vòng tròn mờ tạo hiệu ứng layer ảo ma Canada
+                    Box(
+                        modifier = Modifier
+                            .size(64.dp)
+                            .background(Color.White.copy(alpha = 0.2f), CircleShape)
+                    )
+
+                    // Icon đại diện
+                    Icon(
+                        painter = painterResource(
+                            id = R.drawable.wiis_logo
+                        ),
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+
+                // ── Phần Nội Dung ─────────────────────────────────────────────
+                Column(
+                    modifier = Modifier
+                        .padding(horizontal = 24.dp)
+                        .padding(top = 20.dp, bottom = 24.dp)
+                        .fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = title,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = TextPrimary,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Dùng LazyColumn giới hạn chiều cao tối đa đề phòng text dài quá khổ húc tạ không nổi
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp)
+                    ) {
+                        item {
+                            Text(
+                                text = content,
+                                fontSize = 14.sp,
+                                color = TextPrimary.copy(alpha = 0.75f),
+                                lineHeight = 22.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Button Đã hiểu - Custom full width bo góc thể thao
+                    Button(
+                        onClick = onDismiss,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isWarning) Danger else Primary
+                        ),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .shadow(4.dp, RoundedCornerShape(16.dp)),
+                        elevation = ButtonDefaults.buttonElevation(0.dp)
+                    ) {
+                        Text(
+                            text = "Đã hiểu",
+                            color = Color.White,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 15.sp
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+@Composable
 private fun TimePickerBox(
     modifier: Modifier = Modifier,
     label: String,
@@ -367,4 +615,3 @@ private fun TimePickerBox(
         )
     }
 }
-

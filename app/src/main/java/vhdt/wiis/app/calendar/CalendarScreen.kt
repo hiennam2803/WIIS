@@ -296,7 +296,7 @@ fun CalendarScreen(viewModel: CalendarVM = viewModel()) {
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(end = 24.dp, bottom = 24.dp),
-            containerColor = Color(0xEB1E70C7),
+
             contentColor = Color.White,
             shape = CircleShape
         ) {
