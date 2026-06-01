@@ -2,6 +2,12 @@ package vhdt.wiis.app.calendar
 
 import android.Manifest
 import android.os.Build
+import android.app.TimePickerDialog
+import android.content.Intent
+import android.provider.CalendarContract
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.OutlinedTextField
+import java.time.LocalDateTime
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -93,6 +99,8 @@ private val BELL_ICON_PURPLE = Color(0xFF7C3AED)
 @Composable
 fun CalendarScreen(viewModel: CalendarVM = viewModel()) {
 
+    var showAddEventDialog by remember { mutableStateOf(false) }
+
     val context = LocalContext.current
     val selectedDateState = viewModel.selectedDate.value  // Explicitly observe state changes
     
@@ -117,161 +125,194 @@ fun CalendarScreen(viewModel: CalendarVM = viewModel()) {
 
         // Using system Clock app for alarms; no exact-alarm permission required
     }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0x00FFFFFF))
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp)
-            .padding(bottom = 24.dp)
-    ) {
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Header
-        Card(
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(72.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0x00FFFFFF)),
+                .fillMaxSize()
+                .background(Color(0x00FFFFFF))
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 24.dp)
         ) {
-            Row(
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Header
+            Card(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .fillMaxWidth()
+                    .height(72.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0x00FFFFFF)),
             ) {
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = Color(0xFF1856BB),
+                Row(
                     modifier = Modifier
-                        .clickable { viewModel.goToPreviousMonth() }
-                        .size(44.dp),
-                    shadowElevation = 4.dp
+                        .fillMaxSize()
+                        .padding(horizontal = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.arrow_back_ios_24px),
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier
-                                .size(20.dp)
-                                .padding(start = 4.dp)
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = Color(0xFF1856BB),
+                        modifier = Modifier
+                            .clickable { viewModel.goToPreviousMonth() }
+                            .size(44.dp),
+                        shadowElevation = 4.dp
+                    ) {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.arrow_back_ios_24px),
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .padding(start = 4.dp)
+                            )
+                        }
+                    }
+
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = "Tháng ${viewModel.displayMonth.value.monthValue}",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1856BB)
+                        )
+                        Text(
+                            text = "Năm ${viewModel.displayMonth.value.year}",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF64748B)
                         )
                     }
-                }
 
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text = "Tháng ${viewModel.displayMonth.value.monthValue}",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1856BB)
-                    )
-                    Text(
-                        text = "Năm ${viewModel.displayMonth.value.year}",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF64748B)
-                    )
-                }
-
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = Color(0xFF1856BB),
-                    modifier = Modifier
-                        .clickable { viewModel.goToNextMonth() }
-                        .size(44.dp),
-                    shadowElevation = 4.dp
-                ) {
-                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.arrow_forward_ios_24px),
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = Color(0xFF1856BB),
+                        modifier = Modifier
+                            .clickable { viewModel.goToNextMonth() }
+                            .size(44.dp),
+                        shadowElevation = 4.dp
+                    ) {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.arrow_forward_ios_24px),
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            MonthCalendarGrid(
+                displayMonth = viewModel.displayMonth.value,
+                selectedDate = selectedDateState,
+                onDateSelected = { viewModel.selectDate(it) },
+                hasTasksOnDate = { viewModel.hasTasksOnDate(it) },
+                hasDeviceEventsOnDate = { viewModel.getDeviceEventsForDate(it).isNotEmpty() },
+                hasAlarmOnDate = { viewModel.hasAlarmOnDate(it) }
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            TodaySummaryCard(
+                selectedDateState,
+                viewModel.getTasksForDate(selectedDateState).size +
+                        viewModel.getDeviceEventsForDate(selectedDateState).size
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "LỊCH TRÌNH",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF94A3B8),
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            TimelineSection(viewModel)
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = "LỊCH ĐIỆN THOẠI",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF94A3B8),
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            val deviceEvents = viewModel.getDeviceEventsForDate(viewModel.selectedDate.value)
+            var showDeviceAlarmDialog by remember {
+                mutableStateOf<CalendarVM.DeviceScheduleItem?>(
+                    null
+                )
+            }
+
+            DeviceEventsSection(
+                viewModel,
+                deviceEvents,
+                onBellClick = { showDeviceAlarmDialog = it }
+            )
+
+            if (showDeviceAlarmDialog != null) {
+                DeviceAlarmDialog(
+                    event = showDeviceAlarmDialog!!,
+                    onDismiss = { showDeviceAlarmDialog = null },
+                    onSave = { minutes ->
+                        val settings = viewModel.getEventSettings(showDeviceAlarmDialog!!.id)
+                        viewModel.saveEventSettings(
+                            showDeviceAlarmDialog!!.id,
+                            settings.copy(alarmEnabled = minutes > 0, minutesBefore = minutes),
+                            deviceEventTitle = showDeviceAlarmDialog!!.title,
+                            deviceEventStartTime = showDeviceAlarmDialog!!.startTime
+                        )
+                        showDeviceAlarmDialog = null
+                    }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(80.dp))
         }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        MonthCalendarGrid(
-            displayMonth = viewModel.displayMonth.value,
-            selectedDate = selectedDateState,
-            onDateSelected = { viewModel.selectDate(it) },
-            hasTasksOnDate = { viewModel.hasTasksOnDate(it) },
-            hasDeviceEventsOnDate = { viewModel.getDeviceEventsForDate(it).isNotEmpty() },
-            hasAlarmOnDate = { viewModel.hasAlarmOnDate(it) }
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        TodaySummaryCard(
-            selectedDateState,
-            viewModel.getTasksForDate(selectedDateState).size +
-                    viewModel.getDeviceEventsForDate(selectedDateState).size
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = "LỊCH TRÌNH",
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF94A3B8),
-            modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        TimelineSection(viewModel)
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = "LỊCH ĐIỆN THOẠI",
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF94A3B8),
-            modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        val deviceEvents = viewModel.getDeviceEventsForDate(viewModel.selectedDate.value)
-        var showDeviceAlarmDialog by remember { mutableStateOf<CalendarVM.DeviceScheduleItem?>(null) }
-        
-        DeviceEventsSection(
-            viewModel,
-            deviceEvents,
-            onBellClick = { showDeviceAlarmDialog = it }
-        )
-        
-        if (showDeviceAlarmDialog != null) {
-            DeviceAlarmDialog(
-                event = showDeviceAlarmDialog!!,
-                onDismiss = { showDeviceAlarmDialog = null },
-                onSave = { minutes ->
-                    val settings = viewModel.getEventSettings(showDeviceAlarmDialog!!.id)
-                    viewModel.saveEventSettings(
-                        showDeviceAlarmDialog!!.id,
-                        settings.copy(alarmEnabled = minutes > 0, minutesBefore = minutes),
-                        deviceEventTitle = showDeviceAlarmDialog!!.title,
-                        deviceEventStartTime = showDeviceAlarmDialog!!.startTime
-                    )
-                    showDeviceAlarmDialog = null
-                }
+        FloatingActionButton(
+            onClick = { showAddEventDialog = true },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 24.dp, bottom = 24.dp),
+            containerColor = Color(0xEB1E70C7),
+            contentColor = Color.White,
+            shape = CircleShape
+        ) {
+            Icon(
+                painter = painterResource(id = R.drawable.add_24px),
+                contentDescription = "Thêm lịch",
+                modifier = Modifier.size(24.dp)
             )
         }
 
-        Spacer(modifier = Modifier.height(80.dp))
+        if (showAddEventDialog) {
+            AddEventDialog(
+                selectedDate = viewModel.selectedDate.value,
+                onDismiss = { showAddEventDialog = false }
+            )
+        }
     }
 }
 
@@ -1335,6 +1376,258 @@ private fun DeviceAlarmDialog(
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF9F27))
                 ) {
                     Text("Lưu cài đặt", fontWeight = FontWeight.Bold, color = Color.White)
+                }
+            }
+        }
+    }
+}
+
+@RequiresApi(Build.VERSION_CODES.O)
+@Composable
+private fun AddEventDialog(
+    selectedDate: LocalDate,
+    onDismiss: () -> Unit
+) {
+    val ctx = LocalContext.current
+    var title by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
+    var startHour by remember { mutableStateOf(8) }
+    var startMinute by remember { mutableStateOf(0) }
+    var endHour by remember { mutableStateOf(9) }
+    var endMinute by remember { mutableStateOf(0) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "Thêm lịch",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1E293B)
+                        )
+                        Text(
+                            selectedDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+                            fontSize = 12.sp,
+                            color = Color(0xFF1856BB),
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    Surface(
+                        shape = CircleShape,
+                        color = Color(0xFFF1F5F9),
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clickable { onDismiss() }
+                    ) {
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.close_24px),
+                                contentDescription = null,
+                                tint = Color(0xFF94A3B8),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Tiêu đề
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = { Text("Tiêu đề *", fontSize = 13.sp) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Mô tả
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Mô tả", fontSize = 13.sp) },
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 3,
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Giờ bắt đầu & kết thúc
+                Text(
+                    "Thời gian",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF94A3B8)
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Bắt đầu
+                    Column(modifier = Modifier.weight(1f)) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFFEEF2FF))
+                                .border(1.dp, Color(0xFF1856BB).copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) {
+                                    TimePickerDialog(ctx, { _, h, m ->
+                                        startHour = h; startMinute = m
+                                    }, startHour, startMinute, true).show()
+                                }
+                                .padding(vertical = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "%02d:%02d".format(startHour, startMinute),
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color(0xFF1856BB)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "Bắt đầu",
+                            fontSize = 11.sp,
+                            color = Color(0xFF94A3B8),
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
+
+                    // Mũi tên
+                    Box(
+                        modifier = Modifier
+                            .padding(top = 10.dp)
+                            .size(32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.arrow_forward_ios_24px),
+                            contentDescription = null,
+                            tint = Color(0xFF94A3B8),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+
+                    // Kết thúc
+                    Column(modifier = Modifier.weight(1f)) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFFEEF2FF))
+                                .border(1.dp, Color(0xFF1856BB).copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) {
+                                    TimePickerDialog(ctx, { _, h, m ->
+                                        endHour = h; endMinute = m
+                                    }, endHour, endMinute, true).show()
+                                }
+                                .padding(vertical = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "%02d:%02d".format(endHour, endMinute),
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color(0xFF1856BB)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "Kết thúc",
+                            fontSize = 11.sp,
+                            color = Color(0xFF94A3B8),
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Nút Thêm
+                Button(
+                    onClick = {
+                        if (title.isNotBlank()) {
+                            val startMillis = selectedDate
+                                .atTime(startHour, startMinute)
+                                .atZone(ZoneId.systemDefault())
+                                .toInstant().toEpochMilli()
+                            val endMillis = selectedDate
+                                .atTime(endHour, endMinute)
+                                .atZone(ZoneId.systemDefault())
+                                .toInstant().toEpochMilli()
+
+                            val intent = Intent(Intent.ACTION_INSERT).apply {
+                                data = CalendarContract.Events.CONTENT_URI
+                                putExtra(CalendarContract.Events.TITLE, title)
+                                putExtra(CalendarContract.Events.DESCRIPTION, description)
+                                putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, startMillis)
+                                putExtra(CalendarContract.EXTRA_EVENT_END_TIME, endMillis)
+                            }
+                            ctx.startActivity(intent)
+                            onDismiss()
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (title.isNotBlank()) Color(0xFF1856BB)
+                        else Color(0xFFE2E8F0)
+                    )
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.add_24px),
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        "Thêm vào lịch",
+                        fontWeight = FontWeight.Bold,
+                        color = if (title.isNotBlank()) Color.White else Color(0xFF94A3B8)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Nút Hủy
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth().height(44.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF1F5F9)),
+                    elevation = ButtonDefaults.buttonElevation(0.dp)
+                ) {
+                    Text("Hủy", color = Color(0xFF64748B), fontWeight = FontWeight.SemiBold)
                 }
             }
         }

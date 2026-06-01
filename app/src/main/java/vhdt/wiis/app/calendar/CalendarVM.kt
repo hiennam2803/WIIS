@@ -431,7 +431,7 @@ class CalendarVM(application: Application) : AndroidViewModel(application) {
     @Serializable
     data class EventNotificationSettings(
         val notificationEnabled: Boolean = true,
-        val alarmEnabled: Boolean = true,
+        val alarmEnabled: Boolean = false,
         val minutesBefore: Int = 60
     )
 
