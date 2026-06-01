@@ -32,6 +32,34 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private val calendarPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            Log.d("MainActivity", "Calendar permission granted")
+        } else {
+            Log.d("MainActivity", "Calendar permission denied")
+        }
+    }
+
+    private val alarmPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            Log.d("MainActivity", "Alarm permission granted")
+        } else {
+            Log.d("MainActivity", "Alarm permission denied")
+        }
+    }
+
+    private val multiplePermissionsLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        permissions.forEach { (permission, isGranted) ->
+            Log.d("MainActivity", "$permission: ${if (isGranted) "granted" else "denied"}")
+        }
+    }
+
 
     private fun checkXiaomiWhitelist() {
         if (isXiaomiDevice()) {
@@ -56,18 +84,8 @@ class MainActivity : ComponentActivity() {
         // Create notification channel on app startup
         NotificationHelper.createNotificationChannel(this)
         
-        // Request POST_NOTIFICATIONS permission on Android 13+
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.POST_NOTIFICATIONS
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-            }
-        }
-
-        // No exact-alarm permission required when using AlarmClock intents
+        // Request permissions
+        requestRequiredPermissions()
 
         setContent {
             MaterialTheme {
@@ -76,6 +94,46 @@ class MainActivity : ComponentActivity() {
                     NavGraph(navController = navController)
                 }
             }
+        }
+    }
+
+    private fun requestRequiredPermissions() {
+        val permissionsToRequest = mutableListOf<String>()
+
+        // Request POST_NOTIFICATIONS permission on Android 13+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+
+        // Request READ_CALENDAR permission
+        if (ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.READ_CALENDAR
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            permissionsToRequest.add(Manifest.permission.READ_CALENDAR)
+        }
+
+        // Request SCHEDULE_EXACT_ALARM permission on Android 12+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.SCHEDULE_EXACT_ALARM
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                permissionsToRequest.add(Manifest.permission.SCHEDULE_EXACT_ALARM)
+            }
+        }
+
+        // Request all permissions at once
+        if (permissionsToRequest.isNotEmpty()) {
+            multiplePermissionsLauncher.launch(permissionsToRequest.toTypedArray())
         }
     }
 }

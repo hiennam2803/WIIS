@@ -83,7 +83,6 @@ fun SettingScreen(
     viewModel: SettingVM = viewModel()
 ) {
     val ctx = LocalContext.current
-    var showDeleteDialog by remember { mutableStateOf(false) }
     val settings = viewModel.settings.value
 
     Box(
@@ -210,73 +209,6 @@ fun SettingScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // ── Section: DỮ LIỆU ─────────────────────────────────────────────
-            SectionLabel("DỮ LIỆU")
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Card(
-                shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = CardBg),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .shadow(2.dp, RoundedCornerShape(18.dp))
-                    .border(1.dp, Danger.copy(alpha = 0.2f), RoundedCornerShape(18.dp)),
-                elevation = CardDefaults.cardElevation(0.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) { showDeleteDialog = true }
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = DangerLight,
-                        modifier = Modifier.size(48.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                painter = painterResource(id = safeDrawable(ctx, "delete_24px")),
-                                contentDescription = null,
-                                tint = Danger,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.width(14.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Xóa tất cả dữ liệu",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Danger
-                        )
-                        Spacer(modifier = Modifier.height(3.dp))
-                        Text(
-                            text = "Xóa lịch trình, cài đặt và bộ nhớ đệm",
-                            fontSize = 12.sp,
-                            color = TextSecondary
-                        )
-                    }
-
-                    Icon(
-                        painter = painterResource(id = safeDrawable(ctx, "arrow_forward_ios_24px")),
-                        contentDescription = null,
-                        tint = Danger.copy(alpha = 0.6f),
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
 
             // ── Footer version ────────────────────────────────────────────────
             Text(
@@ -289,18 +221,6 @@ fun SettingScreen(
         }
     }
 
-    // ── Delete confirmation dialog ─────────────────────────────────────────────
-    if (showDeleteDialog) {
-        DeleteConfirmDialog(
-            onDismiss = { showDeleteDialog = false },
-            onConfirm = {
-                viewModel.deleteAllData()
-                Toast.makeText(ctx, "Đã xóa tất cả dữ liệu", Toast.LENGTH_SHORT).show()
-                showDeleteDialog = false
-                navController.popBackStack()
-            }
-        )
-    }
 }
 
 // ── Reusable composables ───────────────────────────────────────────────────────
@@ -449,104 +369,3 @@ private fun TimePickerBox(
     }
 }
 
-@Composable
-private fun DeleteConfirmDialog(
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit
-) {
-    val ctx = LocalContext.current
-
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(28.dp),
-            color = Color.White,
-            shadowElevation = 24.dp
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(28.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // Warning icon
-                Box(
-                    modifier = Modifier
-                        .size(80.dp)
-                        .clip(CircleShape)
-                        .background(
-                            Brush.radialGradient(
-                                listOf(DangerLight, Color(0xFFFFD5D5))
-                            )
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        painter = painterResource(id = safeDrawable(ctx, "notifications_24px")),
-                        contentDescription = null,
-                        tint = Danger,
-                        modifier = Modifier.size(36.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = "Xóa tất cả?",
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = TextPrimary,
-                    textAlign = TextAlign.Center
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = "Toàn bộ lịch trình, cài đặt thông báo\nvà bộ nhớ đệm sẽ bị xóa vĩnh viễn.\nHành động này không thể hoàn tác.",
-                    fontSize = 13.sp,
-                    color = Color(0xFF64748B),
-                    textAlign = TextAlign.Center,
-                    lineHeight = 20.sp
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Xóa vĩnh viễn
-                Button(
-                    onClick = onConfirm,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Danger),
-                    shape = RoundedCornerShape(14.dp)
-                ) {
-                    Text(
-                        text = "Xóa vĩnh viễn",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // Hủy bỏ
-                Button(
-                    onClick = onDismiss,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF1F5F9)),
-                    shape = RoundedCornerShape(14.dp),
-                    elevation = ButtonDefaults.buttonElevation(0.dp)
-                ) {
-                    Text(
-                        text = "Hủy bỏ",
-                        color = Color(0xFF64748B),
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 15.sp
-                    )
-                }
-            }
-        }
-    }
-}

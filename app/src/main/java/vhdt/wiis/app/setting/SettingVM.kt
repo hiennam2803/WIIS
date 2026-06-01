@@ -53,29 +53,4 @@ class SettingVM(application: Application) : AndroidViewModel(application) {
         prefs.edit().putString("quietHoursEnd", time).apply()
     }
 
-    /**
-     * Delete all application data:
-     * - clear `app_settings` prefs
-     * - clear `event_settings` prefs
-     * - clear schedule repository storage (regular + encrypted prefs)
-     */
-    fun deleteAllData() {
-        // clear app settings
-        prefs.edit().clear().apply()
-
-        // clear event-specific settings
-        val eventPrefs = getApplication<Application>()
-            .getSharedPreferences("event_settings", Context.MODE_PRIVATE)
-        eventPrefs.edit().clear().apply()
-
-        // clear repository persisted data
-        try {
-            repository.clearAllData()
-        } catch (e: Exception) {
-            // swallow — best-effort cleanup
-        }
-
-        // reset in-memory state
-        settings.value = AppSetting()
-    }
 }

@@ -145,11 +145,5 @@ class ScheduleRepository(
         cachedScheduleItems = items
         _scheduleItems.value = items
     }
-    
-    fun clearAllData() {
-        regularPrefs.edit().clear().apply()
-        encryptedPrefs.edit().clear().apply()
-        cachedPlugins = null
-        cachedScheduleItems = null
-    }
+
 }
